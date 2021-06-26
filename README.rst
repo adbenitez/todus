@@ -13,8 +13,8 @@ ToDus client
 .. image:: https://img.shields.io/pypi/l/todus.svg
    :target: https://pypi.org/project/todus
 
-.. image:: https://github.com/simplebot-org/todus/actions/workflows/python-ci.yml/badge.svg
-   :target: https://github.com/simplebot-org/todus/actions/workflows/python-ci.yml
+.. image:: https://github.com/adbenitez/todus/actions/workflows/python-ci.yml/badge.svg
+   :target: https://github.com/adbenitez/todus/actions/workflows/python-ci.yml
 
 .. image:: https://img.shields.io/badge/code%20style-black-000000.svg
    :target: https://github.com/psf/black
