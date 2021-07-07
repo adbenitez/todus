@@ -1,0 +1,19 @@
+[flake8]
+exclude = 
+    .git,
+    .tx,
+    .vscode,
+    __pycache__,
+    old,
+    build,
+    dist,
+    tests,
+    venv,
+    venv.back,
+    .venv,
+    .venv.back,
+    docs,
+    devscripts,
+max-line-length = 127
+extend-ignore = E203,
+    F841,
