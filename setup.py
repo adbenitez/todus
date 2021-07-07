@@ -60,4 +60,6 @@ if __name__ == "__main__":
             "test": test_deps,
             "dev": dev_deps,
         },
+        python_requires=">=3.6.0",
+        entry_points={"console_scripts": ["todus = todus.main:main"]},
     )
