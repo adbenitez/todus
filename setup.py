@@ -5,29 +5,34 @@ import re
 
 from setuptools import find_packages, setup
 
+
+def get_requirements(file_path):
+    with open(file_path, encoding="utf-8") as req:
+        requires_deps = [
+            line.replace("==", ">=")
+            for line in req.read().split("\n")
+            if line and not line.startswith(("#", "-"))
+        ]
+    return requires_deps
+
+
 if __name__ == "__main__":
     MODULE_NAME = "todus"
     DESC = "ToDus client"
     URL = "https://github.com/adbenitez/todus"
+    version = ""
 
     with open(os.path.join(MODULE_NAME, "__init__.py")) as fh:
-        version = re.search(r"__version__ = \"(.*?)\"", fh.read(), re.M).group(1)
+        m = re.search(r"__version__ = \"(.*?)\"", fh.read(), re.M)
+        if m:
+            version = m.group(1)
 
     with open("README.rst") as fh:
         long_description = fh.read()
 
-    with open("requirements.txt", encoding="utf-8") as req:
-        install_requires = [
-            line.replace("==", ">=")
-            for line in req.read().split("\n")
-            if line and not line.startswith(("#", "-"))
-        ]
-    with open("requirements-test.txt", encoding="utf-8") as req:
-        test_deps = [
-            line.replace("==", ">=")
-            for line in req.read().split("\n")
-            if line and not line.startswith(("#", "-"))
-        ]
+    install_requires = get_requirements("requirements/requirements.txt")
+    test_deps = get_requirements("requirements/requirements-test.txt")
+    dev_deps = get_requirements("requirements/requirements-dev.txt")
 
     setup(
         name=MODULE_NAME,
@@ -51,5 +56,10 @@ if __name__ == "__main__":
         include_package_data=True,
         packages=find_packages(),
         install_requires=install_requires,
-        extras_require={"test": test_deps},
+        extras_require={
+            "test": test_deps,
+            "dev": dev_deps,
+        },
+        python_requires=">=3.6.0",
+        entry_points={"console_scripts": ["todus = todus.main:main"]},
     )
