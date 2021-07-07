@@ -1,7 +1,6 @@
 import argparse
 import logging
 import os
-import sys
 import time
 from tempfile import TemporaryDirectory
 from urllib.parse import quote_plus, unquote_plus
@@ -11,7 +10,6 @@ import py7zr
 
 from . import __version__
 from .client import ToDusClient
-from .s3 import get_real_url
 
 logging.basicConfig(format="%(levelname)s - %(message)s", level=logging.INFO)
 
@@ -26,7 +24,7 @@ def split_upload(phone: str, password: str, path: str, part_size: int) -> str:
             "wb",
             volume=part_size,
         ) as vol:
-            with py7zr.SevenZipFile(vol, "w") as a:
+            with py7zr.SevenZipFile(vol, "w") as a:  # type: ignore
                 a.writestr(data, filename)
         del data
         parts = sorted(os.listdir(tempdir))
@@ -34,7 +32,7 @@ def split_upload(phone: str, password: str, path: str, part_size: int) -> str:
         urls = []
         client = ToDusClient()
         for i, name in enumerate(parts, 1):
-            logging.info("Uploading %s/%s: %s", i, parts_count, filename)
+            logging.info(f"Uploading {i}/{parts_count}: {filename}")
             with open(os.path.join(tempdir, name), "rb") as file:
                 part = file.read()
             try:
@@ -139,21 +137,21 @@ def main() -> None:
         return
     if args.command == "upload":
         for path in args.file:
-            logging.info("Uploading: %s", path)
+            logging.info(f"Uploading: {path}")
             if args.part_size:
                 txt = split_upload(args.number, password, path, args.part_size)
-                logging.info("TXT: %s", txt)
+                logging.info(f"TXT: {txt}")
             else:
                 with open(path, "rb") as file:
                     data = file.read()
                 token = client.login(args.number, password)
-                logging.debug("Token: '%s'", token)
+                logging.debug(f"Token: '{token}'")
                 url = client.upload_file(token, data, len(data))
-                url += "?name=" + quote_plus(os.path.basename(path))
-                logging.info("URL: %s", url)
+                url += f"?name={quote_plus(os.path.basename(path))}"
+                logging.info(f"URL: {url}")
     elif args.command == "download":
         token = client.login(args.number, password)
-        logging.debug("Token: '%s'", token)
+        logging.debug(f"Token: '{token}'")
         while args.url:
             url = args.url.pop(0)
             if os.path.exists(url):
@@ -165,15 +163,19 @@ def main() -> None:
                             urls.append("{}?name={}".format(*line.split(maxsplit=1)))
                     args.url = urls + args.url
                     continue
-            logging.info("Downloading: %s", url)
+            logging.info(
+                f"Downloading: {url}",
+            )
             url, name = url.split("?name=", maxsplit=1)
             name = unquote_plus(name)
             try:
                 size = client.download_file(token, url, name)
-            except:
+            except Exception:
                 token = client.login(args.number, password)
                 size = client.download_file(token, url, name)
-            logging.debug("File Size: %s", size // 1024)
+            logging.debug(
+                f"File Size: {size // 1024}",
+            )
     elif args.command == "login":
         set_password(args.number, register(client, args.number), args.folder)
     else:

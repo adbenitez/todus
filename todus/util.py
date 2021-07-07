@@ -2,6 +2,7 @@ import multiprocessing
 import queue
 import random
 import string
+from multiprocessing import Queue
 
 from .errors import AbortError
 
@@ -9,10 +10,10 @@ from .errors import AbortError
 class ResultProcess(multiprocessing.Process):
     def __init__(self, target, **kwargs) -> None:
         self._real_target = target
-        self._result_queue = multiprocessing.Queue()
+        self._result_queue: Queue = Queue()
         self._failed = multiprocessing.Event()
         kwargs.setdefault("daemon", True)
-        super().__init__(target=self._wrapper, **kwargs)
+        super(ResultProcess, self).__init__(target=self._wrapper, **kwargs)
 
     def _wrapper(self, *args, **kwargs) -> None:
         try:
@@ -26,6 +27,7 @@ class ResultProcess(multiprocessing.Process):
         self._result_queue.put(AbortError())
 
     def get_result(self, timeout: float = None):
+        result = None
         try:
             result = self._result_queue.get(timeout=timeout)
         except queue.Empty:

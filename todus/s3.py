@@ -23,9 +23,11 @@ def _negociate_start(m: str, so: ssl.SSLSocket, authstr: bytes, sid: str) -> boo
     ):
         return True
 
-    if (
-        m
-        == "<stream:features><es xmlns='x2'><e>PLAIN</e><e>X-OAUTH2</e></es><register xmlns='http://jabber.org/features/iq-register'/></stream:features>"
+    if m == (
+        "<stream:features>"
+        "<es xmlns='x2'><e>PLAIN</e><e>X-OAUTH2</e></es>"
+        "<register xmlns='http://jabber.org/features/iq-register'/>"
+        "</stream:features>"
     ):
         so.send(b"<ah xmlns='ah:ns' e='PLAIN'>" + authstr + b"</ah>")
         return True
