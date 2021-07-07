@@ -1,5 +1,5 @@
 import string
-from typing import Any, Callable
+from typing import Any, Callable, Dict, Optional
 
 import requests
 
@@ -22,8 +22,8 @@ class ToDusClient:
             }
         )
         self._real_request = self.session.request
-        self.session.request = self._request
-        self._process = None
+        self.session.request = self._request  # type: ignore[assignment]
+        self._process: Optional[ResultProcess] = None
 
     def _request(self, *args, **kwargs) -> requests.Response:
         kwargs.setdefault("timeout", self.timeout)
@@ -38,33 +38,36 @@ class ToDusClient:
             self.abort()
 
     def abort(self) -> None:
-        p = self._process
-        if p is not None:
+        if self._process is not None:
+            self._process.kill()  # type: ignore
+            self._process.abort()
             self._process = None
-            p.kill()
-            p.abort()
 
     @property
     def auth_ua(self) -> str:
-        return "ToDus {} Auth".format(self.version_name)
+        return f"ToDus {self.version_name} Auth"
 
     @property
     def upload_ua(self) -> str:
-        return "ToDus {} HTTP-Upload".format(self.version_name)
+        return f"ToDus {self.version_name} HTTP-Upload"
 
     @property
     def download_ua(self) -> str:
-        return "ToDus {} HTTP-Download".format(self.version_name)
+        return f"ToDus {self.version_name} HTTP-Download"
+
+    @property
+    def headers_auth(self) -> Dict[str, str]:
+        return {
+            "Host": "auth.todus.cu",
+            "User-Agent": self.auth_ua,
+            "Content-Type": "application/x-protobuf",
+        }
 
     def request_code(self, phone_number: str) -> None:
         """Request server to send verification SMS code."""
 
         def task() -> None:
-            headers = {
-                "Host": "auth.todus.cu",
-                "User-Agent": self.auth_ua,
-                "Content-Type": "application/x-protobuf",
-            }
+            headers = self.headers_auth
             data = (
                 b"\n\n"
                 + phone_number.encode()
@@ -84,11 +87,7 @@ class ToDusClient:
         """
 
         def task() -> str:
-            headers = {
-                "Host": "auth.todus.cu",
-                "User-Agent": self.auth_ua,
-                "Content-Type": "application/x-protobuf",
-            }
+            headers = self.headers_auth
             data = (
                 b"\n\n"
                 + phone_number.encode()
@@ -112,11 +111,7 @@ class ToDusClient:
         """Login with phone number and password to get an access token."""
 
         def task() -> str:
-            headers = {
-                "Host": "auth.todus.cu",
-                "user-agent": self.auth_ua,
-                "content-type": "application/x-protobuf",
-            }
+            headers = self.headers_auth
             data = (
                 b"\n\n"
                 + phone_number.encode()
@@ -150,7 +145,7 @@ class ToDusClient:
         def task2() -> tuple:
             headers = {
                 "User-Agent": self.upload_ua,
-                "Authorization": "Bearer {}".format(token),
+                "Authorization": f"Bearer {token}",
             }
             with self.session.put(
                 url=up_url, data=data, headers=headers, timeout=timeout
@@ -174,11 +169,11 @@ class ToDusClient:
         def task2() -> int:
             headers = {
                 "User-Agent": self.download_ua,
-                "Authorization": "Bearer {}".format(token),
+                "Authorization": f"Bearer {token}",
             }
             with self.session.get(url=url, headers=headers) as resp:
                 resp.raise_for_status()
-                size = int(resp.headers.get("Content-Length"))
+                size = int(resp.headers.get("Content-Length", 0))
                 with open(path, "wb") as file:
                     file.write(resp.content)
                 return size
