@@ -1,3 +1,4 @@
+import re
 import multiprocessing
 import queue
 import random
@@ -38,3 +39,8 @@ class ResultProcess(multiprocessing.Process):
 def generate_token(length: int) -> str:
     chars = string.ascii_letters + string.digits
     return "".join(random.choice(chars) for _ in range(length))
+
+
+def normalize_phone_number(phone_number: str) -> str:
+    phone_number = phone_number.lstrip("+").replace(" ", "")
+    return "53" + re.match(r"(53)?(\d{8})", phone_number).group(2)
