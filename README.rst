@@ -24,9 +24,13 @@ Use the ToDus API in your Python projects.
 Install
 -------
 
-To install run::
+To install the latest stable version run::
 
   pip install todus
+
+To test the unreleased version run::
+
+  pip install todus git+https://github.com/adbenitez/todus
 
 Quickstart
 ----------
