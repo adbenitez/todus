@@ -1,7 +1,7 @@
-import re
 import multiprocessing
 import queue
 import random
+import re
 import string
 
 from .errors import AbortError
