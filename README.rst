@@ -27,3 +27,35 @@ Install
 To install run::
 
   pip install todus
+
+Quickstart
+----------
+
+This is an example of how you would use this library in your projects:
+
+.. code-block:: python
+
+  from todus.client import ToDusClient
+
+  client = ToDusClient()
+  phone_number = "5312345678"
+
+  # this only needs to be done once:
+  client.request_code(phone_number)  # request SMS to start a new session
+  pin = input("Enter PIN:").strip()  # enter the PIN received in SMS
+  password = client.validate_code(phone, pin)  # you must save your session password to avoid having to verify via SMS again.
+  print(f"Save your password: {password}")
+
+  # get a token needed to upload/download files:
+  token = client.login(phone_number, password)
+
+  # uploading a file:
+  file_path = "/home/user/Pictures/photo.jpg"
+  with open(file_path, "rb") as file:
+      data = file.read()
+  url = client.upload_file(token, data)
+  print(f"Uploaded file to: {url}")
+
+  # downloading a file:
+  size = client.download_file(token, url, path="my-photo.jpg")
+  print(f"Downloaded {size} Bytes")
