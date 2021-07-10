@@ -44,6 +44,9 @@ if __name__ == "__main__":
         zip_safe=False,
         include_package_data=True,
         packages=find_packages(),
-        install_requires=load_requirements("requirements.txt"),
-        extras_require={"test": load_requirements("requirements-test.txt")},
+        install_requires=load_requirements("requirements/requirements.txt"),
+        extras_require={
+            "test": load_requirements("requirements/requirements-test.txt"),
+            "dev": load_requirements("requirements/requirements-dev.txt"),
+        },
     )
