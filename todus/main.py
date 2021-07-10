@@ -162,7 +162,8 @@ def main() -> None:
                     for line in fp.readlines():
                         line = line.strip()
                         if line:
-                            urls.append("{}?name={}".format(*line.split(maxsplit=1)))
+                            url, name = line.split(maxsplit=1)
+                            urls.append(f"{url}?name={name}")
                     args.url = urls + args.url
                     continue
             logging.info("Downloading: %s", url)

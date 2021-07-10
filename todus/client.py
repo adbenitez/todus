@@ -46,15 +46,15 @@ class ToDusClient:
 
     @property
     def auth_ua(self) -> str:
-        return "ToDus {} Auth".format(self.version_name)
+        return f"ToDus {self.version_name} Auth"
 
     @property
     def upload_ua(self) -> str:
-        return "ToDus {} HTTP-Upload".format(self.version_name)
+        return f"ToDus {self.version_name} HTTP-Upload"
 
     @property
     def download_ua(self) -> str:
-        return "ToDus {} HTTP-Download".format(self.version_name)
+        return f"ToDus {self.version_name} HTTP-Download"
 
     def request_code(self, phone_number: str) -> None:
         """Request server to send verification SMS code."""
@@ -150,7 +150,7 @@ class ToDusClient:
         def task2() -> tuple:
             headers = {
                 "User-Agent": self.upload_ua,
-                "Authorization": "Bearer {}".format(token),
+                f"Authorization": "Bearer {token}",
             }
             with self.session.put(
                 url=up_url, data=data, headers=headers, timeout=timeout
@@ -174,7 +174,7 @@ class ToDusClient:
         def task2() -> int:
             headers = {
                 "User-Agent": self.download_ua,
-                "Authorization": "Bearer {}".format(token),
+                f"Authorization": "Bearer {token}",
             }
             with self.session.get(url=url, headers=headers) as resp:
                 resp.raise_for_status()

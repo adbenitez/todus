@@ -35,7 +35,7 @@ def _negociate_start(m: str, so: ssl.SSLSocket, authstr: bytes, sid: str) -> boo
         return True
 
     if "<stream:features><b1 xmlns='x4'/>" in m:
-        so.send("<iq i='{}-1' t='set'><b1 xmlns='x4'></b1></iq>".format(sid).encode())
+        so.send(f"<iq i='{sid}-1' t='set'><b1 xmlns='x4'></b1></iq>".encode())
         return True
 
     return False
@@ -61,7 +61,7 @@ def reserve_url(token: str, filesize: int) -> tuple:
         if _negociate_start(m, so, authstr, sid):
             continue
 
-        if "t='result' i='{}-1'>".format(sid) in m:
+        if f"t='result' i='{sid}-1'>" in m:
             so.send(b"<en xmlns='x7' u='true' max='300'/>")
             so.send(
                 (
@@ -99,15 +99,13 @@ def get_real_url(token: str, url: str) -> str:
         if _negociate_start(m, so, authstr, sid):
             continue
 
-        if "t='result' i='{}-1'>".format(sid) in m:
+        if f"t='result' i='{sid}-1'>" in m:
             so.send(
-                "<iq i='{}-2' t='get'><query xmlns='todus:gurl' url='{}'></query></iq>".format(
-                    sid, url
-                ).encode(),
+                f"<iq i='{sid}-2' t='get'><query xmlns='todus:gurl' url='{url}'></query></iq>".encode(),
             )
             continue
 
-        if "t='result' i='{}-2'>".format(sid) in m and "status='200'" in m:
+        if f"t='result' i='{sid}-2'>" in m and "status='200'" in m:
             return re.match(".*du='(.*)' stat.*", m).group(1).replace("amp;", "")
 
         if "<not-authorized/>" in m:
