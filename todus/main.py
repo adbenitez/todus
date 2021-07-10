@@ -171,7 +171,7 @@ def main() -> None:
             name = unquote_plus(name)
             try:
                 size = client.download_file(token, url, name)
-            except:
+            except Exception:
                 token = client.login(args.number, password)
                 size = client.download_file(token, url, name)
             logging.debug("File Size: %s", size // 1024)
