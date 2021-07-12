@@ -1,9 +1,10 @@
 """Setup module installation."""
 
-from setuptools import find_packages, setup
+from setuptools import find_packages, setup  # type: ignore
 
 
 def load_requirements(path: str) -> list:
+    """load requirements from the given relative path"""
     with open(path, encoding="utf-8") as file:
         return [
             line.replace("==", ">=")

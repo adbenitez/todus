@@ -1,22 +1,20 @@
 import argparse
 import logging
 import os
-import sys
 import time
 from tempfile import TemporaryDirectory
 from urllib.parse import quote_plus, unquote_plus
 
 import multivolumefile
-import py7zr
+import py7zr  # type: ignore
 
 from . import __version__
 from .client import ToDusClient
-from .s3 import get_real_url
 
 logging.basicConfig(format="%(levelname)s - %(message)s", level=logging.INFO)
 
 
-def split_upload(phone: str, password: str, path: str, part_size: int) -> str:
+def _split_upload(phone: str, password: str, path: str, part_size: int) -> str:
     with open(path, "rb") as file:
         data = file.read()
     filename = os.path.basename(path)
@@ -26,8 +24,8 @@ def split_upload(phone: str, password: str, path: str, part_size: int) -> str:
             "wb",
             volume=part_size,
         ) as vol:
-            with py7zr.SevenZipFile(vol, "w") as a:
-                a.writestr(data, filename)
+            with py7zr.SevenZipFile(vol, "w") as archive:
+                archive.writestr(data, filename)
         del data
         parts = sorted(os.listdir(tempdir))
         parts_count = len(parts)
@@ -50,15 +48,15 @@ def split_upload(phone: str, password: str, path: str, part_size: int) -> str:
                     logging.exception(ex)
                     raise ValueError(
                         f"Failed to upload part {i} ({len(part):,}B): {ex}"
-                    )
-        txt = "\n".join(f"{down_url}\t{name}" for down_url, name in zip(urls, parts))
+                    ) from ex
+        text = "\n".join(f"{down_url}\t{name}" for down_url, name in zip(urls, parts))
         path = os.path.abspath(filename + ".txt")
-        with open(path, "w") as f:
-            f.write(txt)
+        with open(path, "w") as txt:
+            txt.write(text)
         return path
 
 
-def get_parser() -> argparse.ArgumentParser:
+def _get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog=__name__.split(".")[0],
         description="ToDus Client",
@@ -89,7 +87,7 @@ def get_parser() -> argparse.ArgumentParser:
 
     subparsers = parser.add_subparsers(dest="command")
 
-    login_parser = subparsers.add_parser(name="login", help="authenticate in server")
+    subparsers.add_parser(name="login", help="authenticate in server")
 
     up_parser = subparsers.add_parser(name="upload", help="upload file")
     up_parser.add_argument(
@@ -108,7 +106,7 @@ def get_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def register(client: ToDusClient, phone: str) -> str:
+def _register(client: ToDusClient, phone: str) -> str:
     client.request_code(phone)
     pin = input("Enter PIN:").strip()
     password = client.validate_code(phone, pin)
@@ -116,7 +114,7 @@ def register(client: ToDusClient, phone: str) -> str:
     return password
 
 
-def get_password(phone: str, folder: str) -> str:
+def _get_password(phone: str, folder: str) -> str:
     path = os.path.join(folder, phone + ".cfg")
     if os.path.exists(path):
         with open(path) as file:
@@ -124,58 +122,69 @@ def get_password(phone: str, folder: str) -> str:
     return ""
 
 
-def set_password(phone: str, password: str, folder: str) -> None:
+def _set_password(phone: str, password: str, folder: str) -> None:
     with open(os.path.join(folder, phone + ".cfg"), "w") as file:
         file.write("password=" + password)
 
 
-def main() -> None:
-    parser = get_parser()
-    args = parser.parse_args()
+def _upload(password: str, args) -> None:
     client = ToDusClient()
-    password = get_password(args.number, args.folder)
+    for path in args.file:
+        logging.info("Uploading: %s", path)
+        if args.part_size:
+            txt = _split_upload(args.number, password, path, args.part_size)
+            logging.info("TXT: %s", txt)
+        else:
+            with open(path, "rb") as file:
+                data = file.read()
+            token = client.login(args.number, password)
+            logging.debug("Token: '%s'", token)
+            url = client.upload_file(token, data, len(data))
+            url += "?name=" + quote_plus(os.path.basename(path))
+            logging.info("URL: %s", url)
+
+
+def _download(password: str, args) -> None:
+    client = ToDusClient()
+    token = client.login(args.number, password)
+    logging.debug("Token: '%s'", token)
+    while args.url:
+        url = args.url.pop(0)
+        if os.path.exists(url):
+            with open(url) as file:
+                urls = []
+                for line in file.readlines():
+                    line = line.strip()
+                    if line:
+                        url, name = line.split(maxsplit=1)
+                        urls.append(f"{url}?name={name}")
+                args.url = urls + args.url
+                continue
+        logging.info("Downloading: %s", url)
+        url, name = url.split("?name=", maxsplit=1)
+        name = unquote_plus(name)
+        try:
+            size = client.download_file(token, url, name)
+        except Exception:
+            token = client.login(args.number, password)
+            size = client.download_file(token, url, name)
+        logging.debug("File Size: %s", size // 1024)
+
+
+def main() -> None:
+    """CLI program."""
+    parser = _get_parser()
+    args = parser.parse_args()
+    password = _get_password(args.number, args.folder)
     if not password and args.command != "loging":
         print("ERROR: account not authenticated, login first.")
         return
     if args.command == "upload":
-        for path in args.file:
-            logging.info("Uploading: %s", path)
-            if args.part_size:
-                txt = split_upload(args.number, password, path, args.part_size)
-                logging.info("TXT: %s", txt)
-            else:
-                with open(path, "rb") as file:
-                    data = file.read()
-                token = client.login(args.number, password)
-                logging.debug("Token: '%s'", token)
-                url = client.upload_file(token, data, len(data))
-                url += "?name=" + quote_plus(os.path.basename(path))
-                logging.info("URL: %s", url)
+        _upload(password, args)
     elif args.command == "download":
-        token = client.login(args.number, password)
-        logging.debug("Token: '%s'", token)
-        while args.url:
-            url = args.url.pop(0)
-            if os.path.exists(url):
-                with open(url) as fp:
-                    urls = []
-                    for line in fp.readlines():
-                        line = line.strip()
-                        if line:
-                            url, name = line.split(maxsplit=1)
-                            urls.append(f"{url}?name={name}")
-                    args.url = urls + args.url
-                    continue
-            logging.info("Downloading: %s", url)
-            url, name = url.split("?name=", maxsplit=1)
-            name = unquote_plus(name)
-            try:
-                size = client.download_file(token, url, name)
-            except Exception:
-                token = client.login(args.number, password)
-                size = client.download_file(token, url, name)
-            logging.debug("File Size: %s", size // 1024)
+        _download(password, args)
     elif args.command == "login":
-        set_password(args.number, register(client, args.number), args.folder)
+        client = ToDusClient()
+        _set_password(args.number, _register(client, args.number), args.folder)
     else:
         parser.print_usage()

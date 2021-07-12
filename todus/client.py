@@ -1,5 +1,5 @@
 import string
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 import requests
 
@@ -8,6 +8,8 @@ from .util import ResultProcess, generate_token
 
 
 class ToDusClient:
+    """Class to interact with the ToDus API."""
+
     def __init__(
         self, version_name: str = "0.38.34", version_code: str = "21805"
     ) -> None:
@@ -22,8 +24,8 @@ class ToDusClient:
             }
         )
         self._real_request = self.session.request
-        self.session.request = self._request
-        self._process = None
+        self.session.request = self._request  # type: ignore
+        self._process: Optional[ResultProcess] = None
 
     def _request(self, *args, **kwargs) -> requests.Response:
         kwargs.setdefault("timeout", self.timeout)
@@ -38,22 +40,26 @@ class ToDusClient:
             self.abort()
 
     def abort(self) -> None:
-        p = self._process
-        if p is not None:
+        """Abort current operation."""
+        process = self._process
+        if process is not None:
             self._process = None
-            p.kill()
-            p.abort()
+            process.kill()
+            process.abort()
 
     @property
     def auth_ua(self) -> str:
+        """User Agent used for authentication."""
         return f"ToDus {self.version_name} Auth"
 
     @property
     def upload_ua(self) -> str:
+        """User Agent used for uploads."""
         return f"ToDus {self.version_name} HTTP-Upload"
 
     @property
     def download_ua(self) -> str:
+        """User Agent used for downloads."""
         return f"ToDus {self.version_name} HTTP-Download"
 
     def request_code(self, phone_number: str) -> None:
@@ -103,8 +109,7 @@ class ToDusClient:
                 if b"`" in resp.content:
                     index = resp.content.index(b"`") + 1
                     return resp.content[index : index + 96].decode()
-                else:
-                    return resp.content[5:166].decode()
+                return resp.content[5:166].decode()
 
         return self._run_task(task, self.timeout)
 
@@ -137,11 +142,9 @@ class ToDusClient:
 
     def upload_file(self, token: str, data: bytes, size: int = None) -> str:
         """Upload data and return the download URL."""
-        if size is None:
-            size = len(data)
 
         def task1() -> tuple:
-            return reserve_url(token, size)
+            return reserve_url(token, size or len(data))
 
         up_url, down_url = self._run_task(task1, self.timeout)
 
@@ -150,7 +153,7 @@ class ToDusClient:
         def task2() -> tuple:
             headers = {
                 "User-Agent": self.upload_ua,
-                f"Authorization": "Bearer {token}",
+                "Authorization": f"Bearer {token}",
             }
             with self.session.put(
                 url=up_url, data=data, headers=headers, timeout=timeout
@@ -174,11 +177,11 @@ class ToDusClient:
         def task2() -> int:
             headers = {
                 "User-Agent": self.download_ua,
-                f"Authorization": "Bearer {token}",
+                "Authorization": f"Bearer {token}",
             }
             with self.session.get(url=url, headers=headers) as resp:
                 resp.raise_for_status()
-                size = int(resp.headers.get("Content-Length"))
+                size = int(resp.headers["Content-Length"])
                 with open(path, "wb") as file:
                     file.write(resp.content)
                 return size
