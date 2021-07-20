@@ -135,7 +135,10 @@ class ToDusClient:
             url = "https://auth.todus.cu/v2/auth/token"
             with self.session.post(url, data=data, headers=headers) as resp:
                 resp.raise_for_status()
-                token = "".join([c for c in resp.text if c in string.printable])
+                # Default Encoding for HTML4 ISO-8859-1 (Latin-1)
+                token = "".join(
+                    c for c in resp.content.decode("latin-1") if c in string.printable
+                )
                 return token
 
         return self._run_task(task, self.timeout)
