@@ -76,7 +76,7 @@ def reserve_url(token: str, filesize: int) -> tuple:
                 (
                     "<iq i='"
                     + sid
-                    + "-3' t='get'><query xmlns='todus:purl' type='0' persistent='false' size='"
+                    + "-3' t='get'><query xmlns='todus:purl' type='1' persistent='false' size='"
                     + str(filesize)
                     + "' room=''></query></iq>"
                 ).encode()
