@@ -25,15 +25,18 @@ class ResultProcess(Process):
             self._result_queue.put(ex)
 
     def abort(self) -> None:
-        """Cancel target execution."""
+        """Cancel process execution."""
+        self.kill()
         self._failed.set()
         self._result_queue.put(AbortError())
 
-    def get_result(self, timeout: float = None):
+    def get_result(self, timeout: float = None, kill: bool = True):
         """Return target result."""
         try:
             result = self._result_queue.get(timeout=timeout)
         except queue.Empty as ex:
+            if kill:
+                self.kill()
             raise TimeoutError("Operation timed out.") from ex
         if self._failed.is_set():
             raise result
