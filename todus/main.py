@@ -2,6 +2,7 @@ import argparse
 import logging
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor
 from tempfile import TemporaryDirectory
 from urllib.parse import quote_plus, unquote_plus
 
@@ -9,7 +10,7 @@ import multivolumefile
 import py7zr  # type: ignore
 
 from . import __version__
-from .client import ToDusClient
+from .client import ToDusClient, ToDusClient2
 
 logging.basicConfig(format="%(levelname)s - %(message)s", level=logging.INFO)
 
@@ -145,9 +146,10 @@ def _upload(password: str, args) -> None:
 
 
 def _download(password: str, args) -> None:
-    client = ToDusClient()
-    token = client.login(args.number, password)
-    logging.debug("Token: '%s'", token)
+    pool = ThreadPoolExecutor(max_workers=4)
+    client = ToDusClient2(args.number, password)
+    client.login()
+    logging.debug("Token: '%s'", client.token)
     while args.url:
         url = args.url.pop(0)
         if os.path.exists(url):
@@ -160,15 +162,21 @@ def _download(password: str, args) -> None:
                         urls.append(f"{url}?name={name}")
                 args.url = urls + args.url
                 continue
-        logging.info("Downloading: %s", url)
-        url, name = url.split("?name=", maxsplit=1)
-        name = unquote_plus(name)
-        try:
-            size = client.download_file(token, url, name)
-        except Exception:
-            token = client.login(args.number, password)
-            size = client.download_file(token, url, name)
+        pool.submit(_download_task, url, client, pool)
+    pool.shutdown()
+
+
+def _download_task(url: str, client: ToDusClient2, pool: ThreadPoolExecutor) -> None:
+    logging.info("Downloading: %s", url)
+    s3_url, name = url.split("?name=", maxsplit=1)
+    name = unquote_plus(name)
+    try:
+        size = client.download_file(s3_url, name)
         logging.debug("File Size: %s", size // 1024)
+    except Exception:
+        time.sleep(5)
+        client.login()
+        _download_task(url, client, pool)
 
 
 def main() -> None:
