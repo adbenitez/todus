@@ -23,15 +23,7 @@ class ToDusClient:
                 "Accept-Encoding": "gzip",
             }
         )
-        self.session.request = functools.partial(self._request, self.session.request)  # type: ignore
-
-    def _request(self, real_request: Callable, *args, **kwargs) -> requests.Response:
-        kwargs.setdefault("timeout", 30)
-        resp = real_request(*args, **kwargs)
-        if resp.encoding is None:
-            # Default Encoding for HTML4 ISO-8859-1 (Latin-1)
-            resp.encoding = "latin-1"
-        return resp
+        self.session.request = functools.partial(_request, self.session.request)  # type: ignore
 
     @property
     def auth_ua(self) -> str:
@@ -184,3 +176,12 @@ class ToDusClient2(ToDusClient):
         """
         assert self.token, "Token needed"
         return super().download_file(self.token, url, path)
+
+
+def _request(real_request: Callable, *args, **kwargs) -> requests.Response:
+    kwargs.setdefault("timeout", 30)
+    resp = real_request(*args, **kwargs)
+    if resp.encoding is None:
+        # Default Encoding for HTML4 ISO-8859-1 (Latin-1)
+        resp.encoding = "latin-1"
+    return resp

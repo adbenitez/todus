@@ -21,7 +21,7 @@ def load_requirements(path: str) -> list:
 
 if __name__ == "__main__":
     MODULE_NAME = "todus"
-    with open("README.rst") as fh:
+    with open("README.rst", encoding="utf-8") as fh:
         LONG_DESCRIPTION = fh.read()
 
     setup(

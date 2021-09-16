@@ -13,7 +13,9 @@ _BUFFERSIZE = 1024 * 1024
 def _get_socket() -> ssl.SSLSocket:
     socket_ = socket.socket(socket.AF_INET)
     socket_.settimeout(15)
-    ssl_socket = ssl.wrap_socket(socket_, ssl_version=ssl.PROTOCOL_TLSv1_2)
+    context = ssl.create_default_context()
+    context.check_hostname = False
+    ssl_socket = context.wrap_socket(socket_)
     ssl_socket.connect(("im.todus.cu", 1756))
     ssl_socket.send(
         b"<stream:stream xmlns='jc' o='im.todus.cu' xmlns:stream='x1' v='1.0'>"

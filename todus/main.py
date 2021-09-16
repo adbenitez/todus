@@ -52,14 +52,14 @@ def _split_upload(phone: str, password: str, path: str, part_size: int) -> str:
                     ) from ex
         text = "\n".join(f"{down_url}\t{name}" for down_url, name in zip(urls, parts))
         path = os.path.abspath(filename + ".txt")
-        with open(path, "w") as txt:
+        with open(path, "w", encoding="utf-8") as txt:
             txt.write(text)
         return path
 
 
 def _get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog=__name__.split(".")[0],
+        prog=__name__.split(".", maxsplit=1)[0],
         description="ToDus Client",
     )
     parser.add_argument(
@@ -118,13 +118,13 @@ def _register(client: ToDusClient, phone: str) -> str:
 def _get_password(phone: str, folder: str) -> str:
     path = os.path.join(folder, phone + ".cfg")
     if os.path.exists(path):
-        with open(path) as file:
+        with open(path, encoding="utf-8") as file:
             return file.read().split("=", maxsplit=1)[-1].strip()
     return ""
 
 
 def _set_password(phone: str, password: str, folder: str) -> None:
-    with open(os.path.join(folder, phone + ".cfg"), "w") as file:
+    with open(os.path.join(folder, phone + ".cfg"), "w", encoding="utf-8") as file:
         file.write("password=" + password)
 
 
@@ -153,7 +153,7 @@ def _download(password: str, args) -> None:
     while args.url:
         url = args.url.pop(0)
         if os.path.exists(url):
-            with open(url) as file:
+            with open(url, encoding="utf-8") as file:
                 urls = []
                 for line in file.readlines():
                     line = line.strip()
