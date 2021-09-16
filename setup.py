@@ -56,4 +56,5 @@ if __name__ == "__main__":
             "test": load_requirements("requirements/requirements-test.txt"),
             "dev": load_requirements("requirements/requirements-dev.txt"),
         },
+        entry_points={"console_scripts": ["todus = todus.main:main"]},
     )
