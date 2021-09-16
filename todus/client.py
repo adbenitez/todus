@@ -1,5 +1,6 @@
 import functools
 import string
+from typing import Callable
 
 import requests
 
@@ -22,7 +23,15 @@ class ToDusClient:
                 "Accept-Encoding": "gzip",
             }
         )
-        self.session.request = functools.partial(self.session.request, timeout=30)  # type: ignore
+        self.session.request = functools.partial(self._request, self.session.request)  # type: ignore
+
+    def _request(self, real_request: Callable, *args, **kwargs) -> requests.Response:
+        kwargs.setdefault("timeout", 30)
+        resp = real_request(*args, **kwargs)
+        if resp.encoding is None:
+            # Default Encoding for HTML4 ISO-8859-1 (Latin-1)
+            resp.encoding = "latin-1"
+        return resp
 
     @property
     def auth_ua(self) -> str:
