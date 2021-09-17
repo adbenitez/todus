@@ -1,8 +1,11 @@
 import functools
+import os
 import string
+import time
+from http.client import IncompleteRead
 from typing import Callable
 
-import requests
+import requests.exceptions
 
 from .s3 import get_real_url, reserve_url
 from .util import generate_token
@@ -126,17 +129,36 @@ class ToDusClient:
 
         Returns the file size.
         """
+        temp_path = f"{path}.part"
         url = get_real_url(token, url)
         headers = {
             "User-Agent": self.download_ua,
             "Authorization": f"Bearer {token}",
         }
-        with self.session.get(url=url, headers=headers) as resp:
-            resp.raise_for_status()
-            size = int(resp.headers["Content-Length"])
-            with open(path, "wb") as file:
-                file.write(resp.content)
-            return size
+        size = -1
+        with open(temp_path, "ab") as file:
+            pos = file.tell()
+            while pos < size or size == -1:
+                if pos:
+                    headers["Range"] = f"bytes={pos}-"
+                try:
+                    with self.session.get(
+                        url=url, headers=headers, stream=True
+                    ) as resp:
+                        resp.raise_for_status()
+                        size = pos + int(resp.headers["Content-Length"])
+                        try:
+                            for chunk in resp.iter_content(chunk_size=10):
+                                file.write(chunk)
+                        except requests.exceptions.ConnectionError:
+                            time.sleep(5)  # TODO: use logger
+                except IncompleteRead:
+                    time.sleep(5)  # TODO: use logger
+                except requests.exceptions.ReadTimeout:
+                    time.sleep(5)  # TODO: use logger
+                pos = file.tell()
+        os.rename(temp_path, path)
+        return size
 
 
 class ToDusClient2(ToDusClient):
