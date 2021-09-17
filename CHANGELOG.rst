@@ -7,10 +7,13 @@ Changelog
 - added ``todus.util.normalize_phone_number()`` utility.
 - added ``todus.client.ToDusClient2`` class.
 - removed ``todus.util.ResultProcess`` and ``todus.errors.AbortError`` classes.
-- now links can be downloaded concurrently with the CLI program.
-- added entry point to add ``todus`` console script that should be available as command.
-- added progress bar to CLI.
-- fixed bug that prevented from using "login" subcommand.
+- avoid incomplete file downloads, check file size match ``Content-Length``.
+- ``todus.client.ToDusClient.download_file()`` will now resume partial downloads.
+- CLI: now links can be downloaded concurrently.
+- CLI: register ``todus`` command, should be available in the shell.
+- CLI: added progress bar.
+- CLI: fixed bug that prevented from using "login" subcommand.
+- CLI: skip already downloaded/uploaded files.
 
 0.1.0
 -----
