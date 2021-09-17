@@ -1,3 +1,4 @@
 requests==2.26.0
 py7zr==0.16.1
 multivolumefile==0.2.3
+tqdm==4.62.2

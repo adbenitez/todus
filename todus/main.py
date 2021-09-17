@@ -1,4 +1,5 @@
 import argparse
+import functools
 import logging
 import os
 import time
@@ -7,15 +8,17 @@ from tempfile import TemporaryDirectory
 from urllib.parse import quote_plus, unquote_plus
 
 import multivolumefile
-import py7zr  # type: ignore
+import py7zr
+import tqdm
 
 from . import __version__
 from .client import ToDusClient, ToDusClient2
 
 logging.basicConfig(format="%(levelname)s - %(message)s", level=logging.INFO)
+logger = logging
 
 
-def _split_upload(phone: str, password: str, path: str, part_size: int) -> str:
+def _split_upload(client: ToDusClient2, path: str, part_size: int) -> str:
     with open(path, "rb") as file:
         data = file.read()
     filename = os.path.basename(path)
@@ -29,32 +32,34 @@ def _split_upload(phone: str, password: str, path: str, part_size: int) -> str:
                 archive.writestr(data, filename)
         del data
         parts = sorted(os.listdir(tempdir))
-        parts_count = len(parts)
+        pool = ThreadPoolExecutor(max_workers=1)
+        pbar = tqdm.tqdm(total=len(parts))
+        task = functools.partial(_upload_task, client=client, folder=tempdir)
         urls = []
-        client = ToDusClient()
-        for i, name in enumerate(parts, 1):
-            logging.info("Uploading %s/%s: %s", i, parts_count, filename)
-            with open(os.path.join(tempdir, name), "rb") as file:
-                part = file.read()
-            try:
-                token = client.login(phone, password)
-                urls.append(client.upload_file(token, part, len(part)))
-            except Exception as ex:
-                logging.exception(ex)
-                time.sleep(15)
-                try:
-                    token = client.login(phone, password)
-                    urls.append(client.upload_file(token, part, len(part)))
-                except Exception as ex:
-                    logging.exception(ex)
-                    raise ValueError(
-                        f"Failed to upload part {i} ({len(part):,}B): {ex}"
-                    ) from ex
-        text = "\n".join(f"{down_url}\t{name}" for down_url, name in zip(urls, parts))
-        path = os.path.abspath(filename + ".txt")
-        with open(path, "w", encoding="utf-8") as txt:
-            txt.write(text)
-        return path
+        client.login()
+        for url in pool.map(task, parts):
+            urls.append(url)
+            pbar.update(1)
+            pbar.refresh()
+    path = os.path.abspath(filename + ".txt")
+    with open(path, "w", encoding="utf-8") as txt:
+        for down_url, name in zip(urls, parts):
+            txt.write(f"{down_url}\t{name}\n")
+    return path
+
+
+def _upload_task(name: str, folder: str, client: ToDusClient2) -> str:
+    tqdm.tqdm.write(f"Uploading: {name}")
+    with open(os.path.join(folder, name), "rb") as file:
+        part = file.read()
+    while True:
+        try:
+            return client.upload_file(part, len(part))
+        except Exception as err:
+            logger.exception(err)
+            time.sleep(15)
+            client.login()
+            tqdm.tqdm.write(f"Retrying: {name}")
 
 
 def _get_parser() -> argparse.ArgumentParser:
@@ -111,7 +116,6 @@ def _register(client: ToDusClient, phone: str) -> str:
     client.request_code(phone)
     pin = input("Enter PIN:").strip()
     password = client.validate_code(phone, pin)
-    logging.debug("PASSWORD: %s", password)
     return password
 
 
@@ -129,54 +133,61 @@ def _set_password(phone: str, password: str, folder: str) -> None:
 
 
 def _upload(password: str, args) -> None:
-    client = ToDusClient()
+    client = ToDusClient2(args.number, password)
     for path in args.file:
-        logging.info("Uploading: %s", path)
         if args.part_size:
-            txt = _split_upload(args.number, password, path, args.part_size)
-            logging.info("TXT: %s", txt)
+            tqdm.tqdm.write(f"Splitting: {path}")
+            txt = _split_upload(client, path, args.part_size)
+            tqdm.tqdm.write(f"TXT: {txt}")
         else:
+            tqdm.tqdm.write(f"Uploading: {path}")
+            pbar = tqdm.tqdm(total=1)
             with open(path, "rb") as file:
                 data = file.read()
-            token = client.login(args.number, password)
-            logging.debug("Token: '%s'", token)
-            url = client.upload_file(token, data, len(data))
+            client.login()
+            url = client.upload_file(data, len(data))
+            pbar.update(1)
+            pbar.refresh()
             url += "?name=" + quote_plus(os.path.basename(path))
-            logging.info("URL: %s", url)
+            tqdm.tqdm.write(f"URL: {url}")
 
 
 def _download(password: str, args) -> None:
-    pool = ThreadPoolExecutor(max_workers=4)
-    client = ToDusClient2(args.number, password)
-    client.login()
-    logging.debug("Token: '%s'", client.token)
-    while args.url:
-        url = args.url.pop(0)
-        if os.path.exists(url):
+    downloads = []
+    for url in args.url:
+        if url.startswith("http"):
+            url, name = url.split("?name=", maxsplit=1)
+            downloads.append((url, unquote_plus(name)))
+        else:
             with open(url, encoding="utf-8") as file:
-                urls = []
                 for line in file.readlines():
                     line = line.strip()
                     if line:
                         url, name = line.split(maxsplit=1)
-                        urls.append(f"{url}?name={name}")
-                args.url = urls + args.url
-                continue
-        pool.submit(_download_task, url, client, pool)
-    pool.shutdown()
+                        downloads.append((url, name))
+
+    pool = ThreadPoolExecutor(max_workers=4)
+    pbar = tqdm.tqdm(total=len(downloads))
+    client = ToDusClient2(args.number, password)
+    client.login()
+    for _ in pool.map(functools.partial(_download_task, client=client), downloads):
+        pbar.update(1)
+        pbar.refresh()
 
 
-def _download_task(url: str, client: ToDusClient2, pool: ThreadPoolExecutor) -> None:
-    logging.info("Downloading: %s", url)
-    s3_url, name = url.split("?name=", maxsplit=1)
-    name = unquote_plus(name)
-    try:
-        size = client.download_file(s3_url, name)
-        logging.debug("File Size: %s", size // 1024)
-    except Exception:
-        time.sleep(5)
-        client.login()
-        _download_task(url, client, pool)
+def _download_task(download: tuple, client: ToDusClient2) -> None:
+    url, name = download
+    url_display = url if len(url) < 50 else url[:50] + "..."
+    tqdm.tqdm.write(f"Downloading: {name} ({url_display})")
+    while True:
+        try:
+            client.download_file(url, name)
+            break
+        except Exception as err:
+            logger.exception(err)
+            time.sleep(15)
+            client.login()
+            tqdm.tqdm.write(f"Retrying: {name} ({url_display})")
 
 
 def main() -> None:
