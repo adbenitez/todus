@@ -50,7 +50,7 @@ def _split_upload(client: ToDusClient2, path: str, part_size: int) -> str:
             uploaded=uploaded_parts,
         )
         client.login()
-        with open(path, "w", encoding="utf-8") as txt:
+        with open(path, "a", encoding="utf-8") as txt:
             for url, name in zip(pool.map(task, parts), parts):
                 if url:
                     txt.write(f"{url}\t{name}\n")  # TODO: do this in the task
