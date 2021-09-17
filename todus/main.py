@@ -31,30 +31,52 @@ def _split_upload(client: ToDusClient2, path: str, part_size: int) -> str:
             with py7zr.SevenZipFile(vol, "w") as archive:
                 archive.writestr(data, filename)
         del data
+        path = os.path.abspath(filename + ".txt")
+        uploaded_parts = []
+        if os.path.exists(path):
+            with open(path, encoding="utf-8") as txt:
+                for line in txt.readlines():
+                    line = line.strip()
+                    if line:
+                        uploaded_parts.append(line.split(maxsplit=1)[1])
         parts = sorted(os.listdir(tempdir))
         pool = ThreadPoolExecutor(max_workers=1)
         pbar = tqdm.tqdm(total=len(parts))
-        task = functools.partial(_upload_task, client=client, folder=tempdir)
-        urls = []
+        task = functools.partial(
+            _upload_task,
+            client=client,
+            folder=tempdir,
+            pbar=pbar,
+            uploaded=uploaded_parts,
+        )
         client.login()
-        for url in pool.map(task, parts):
-            urls.append(url)
-            pbar.update(1)
-            pbar.refresh()
-    path = os.path.abspath(filename + ".txt")
-    with open(path, "w", encoding="utf-8") as txt:
-        for down_url, name in zip(urls, parts):
-            txt.write(f"{down_url}\t{name}\n")
+        with open(path, "w", encoding="utf-8") as txt:
+            for url, name in zip(pool.map(task, parts), parts):
+                if url:
+                    txt.write(f"{url}\t{name}\n")  # TODO: do this in the task
+                    uploaded_parts.append(name)
+                pbar.refresh()
     return path
 
 
-def _upload_task(name: str, folder: str, client: ToDusClient2) -> str:
+def _upload_task(
+    name: str, folder: str, uploaded: list, client: ToDusClient2, pbar: tqdm.tqdm
+) -> str:
+    path = os.path.join(folder, name)
+    if name in uploaded:
+        tqdm.tqdm.write(f"Skipping: {name}")
+        os.remove(path)
+        pbar.update(1)
+        return ""
     tqdm.tqdm.write(f"Uploading: {name}")
-    with open(os.path.join(folder, name), "rb") as file:
+    with open(path, "rb") as file:
         part = file.read()
     while True:
         try:
-            return client.upload_file(part, len(part))
+            url = client.upload_file(part, len(part))
+            os.remove(path)
+            pbar.update(1)
+            return url
         except Exception as err:
             logger.exception(err)
             time.sleep(15)
@@ -168,18 +190,24 @@ def _download(password: str, args) -> None:
     pbar = tqdm.tqdm(total=len(downloads))
     client = ToDusClient2(args.number, password)
     client.login()
-    for _ in pool.map(functools.partial(_download_task, client=client), downloads):
-        pbar.update(1)
+    for _ in pool.map(
+        functools.partial(_download_task, client=client, pbar=pbar), downloads
+    ):
         pbar.refresh()
 
 
-def _download_task(download: tuple, client: ToDusClient2) -> None:
+def _download_task(download: tuple, client: ToDusClient2, pbar: tqdm.tqdm) -> None:
     url, name = download
     url_display = url if len(url) < 50 else url[:50] + "..."
+    if os.path.exists(name):
+        tqdm.tqdm.write(f"Skipping: {name} ({url_display})")
+        pbar.update(1)
+        return
     tqdm.tqdm.write(f"Downloading: {name} ({url_display})")
     while True:
         try:
             client.download_file(url, name)
+            pbar.update(1)
             break
         except Exception as err:
             logger.exception(err)
