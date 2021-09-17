@@ -195,7 +195,7 @@ def main() -> None:
     parser = _get_parser()
     args = parser.parse_args()
     password = _get_password(args.number, args.folder)
-    if not password and args.command != "loging":
+    if not password and args.command != "login":
         print("ERROR: account not authenticated, login first.")
         return
     if args.command == "upload":
