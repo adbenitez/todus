@@ -12,7 +12,7 @@ import py7zr
 import tqdm
 
 from . import __version__
-from .client import ToDusClient, ToDusClient2
+from .client import ToDusClient2
 
 logging.basicConfig(format="%(levelname)s - %(message)s", level=logging.INFO)
 logger = logging
@@ -112,11 +112,14 @@ def _get_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _register(client: ToDusClient, phone: str) -> str:
-    client.request_code(phone)
+def _register(client: ToDusClient2, folder: str) -> None:
+    client.request_code()
     pin = input("Enter PIN:").strip()
-    password = client.validate_code(phone, pin)
-    return password
+    client.validate_code(pin)
+    with open(
+        os.path.join(folder, client.phone_number + ".cfg"), "w", encoding="utf-8"
+    ) as file:
+        file.write("password=" + client.password)
 
 
 def _get_password(phone: str, folder: str) -> str:
@@ -125,11 +128,6 @@ def _get_password(phone: str, folder: str) -> str:
         with open(path, encoding="utf-8") as file:
             return file.read().split("=", maxsplit=1)[-1].strip()
     return ""
-
-
-def _set_password(phone: str, password: str, folder: str) -> None:
-    with open(os.path.join(folder, phone + ".cfg"), "w", encoding="utf-8") as file:
-        file.write("password=" + password)
 
 
 def _upload(password: str, args) -> None:
@@ -203,7 +201,6 @@ def main() -> None:
     elif args.command == "download":
         _download(password, args)
     elif args.command == "login":
-        client = ToDusClient()
-        _set_password(args.number, _register(client, args.number), args.folder)
+        _register(ToDusClient2(args.number), args.folder)
     else:
         parser.print_usage()
