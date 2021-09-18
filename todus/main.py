@@ -226,18 +226,22 @@ def _download_task(download: tuple, client: ToDusClient2, pbar: tqdm.tqdm) -> No
 
 def main() -> None:
     """CLI program."""
-    parser = _get_parser()
-    args = parser.parse_args()
-    password = _get_password(args.number, PROGRAM_FOLDER)
-    if not password and args.command != "login":
-        print("ERROR: account not authenticated, login first.")
-        return
-    client = ToDusClient2(args.number, password, logger=get_logger())
-    if args.command == "upload":
-        _upload(client, args)
-    elif args.command == "download":
-        _download(client, args)
-    elif args.command == "login":
-        _register(client, PROGRAM_FOLDER)
-    else:
-        parser.print_usage()
+    try:
+        parser = _get_parser()
+        args = parser.parse_args()
+        password = _get_password(args.number, PROGRAM_FOLDER)
+        if not password and args.command != "login":
+            print("ERROR: account not authenticated, login first.")
+            return
+        client = ToDusClient2(args.number, password, logger=get_logger())
+        if args.command == "upload":
+            _upload(client, args)
+        elif args.command == "download":
+            _download(client, args)
+        elif args.command == "login":
+            _register(client, PROGRAM_FOLDER)
+        else:
+            parser.print_usage()
+    except KeyboardInterrupt:
+        print("\nOperation canceled by user.")
+        os._exit(1)
