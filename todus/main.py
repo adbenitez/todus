@@ -173,6 +173,8 @@ def _get_parser() -> argparse.ArgumentParser:
 
     subparsers.add_parser(name="token", help="get a token")
 
+    subparsers.add_parser(name="accounts", help="list accounts")
+
     return parser
 
 
@@ -289,7 +291,7 @@ def main() -> None:
         client = ToDusClient2(
             acc["phone_number"], acc["password"], logger=_get_logger()
         )
-        if not client.registered and args.command != "login":
+        if not client.registered and args.command not in ("login", "accounts"):
             print("ERROR: account not authenticated, login first.")
             return
         if args.command == "upload":
@@ -301,6 +303,13 @@ def main() -> None:
         elif args.command == "token":
             client.login()
             print(client.token)
+        elif args.command == "accounts":
+            if not config["accounts"]:
+                print("No accounts added yet.")
+            else:
+                for acc in config["accounts"]:
+                    status = "logged" if acc["password"] else "not logged"
+                    print(f"{acc['phone_number']} ({status})")
         else:
             parser.print_usage()
     except KeyboardInterrupt:
