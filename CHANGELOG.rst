@@ -15,6 +15,7 @@ Changelog
 - CLI: fixed bug that prevented from using "login" subcommand.
 - CLI: skip already downloaded/uploaded files.
 - added logging to ``todus.client`` and make the CLI write logs to ``~/.todus/log.txt`` file.
+- renamed ``--part-size`` option to ``--split``.
 
 0.1.0
 -----

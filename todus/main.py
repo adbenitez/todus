@@ -121,12 +121,12 @@ def _get_parser() -> argparse.ArgumentParser:
 
     up_parser = subparsers.add_parser(name="upload", help="upload file")
     up_parser.add_argument(
-        "-p",
-        "--part-size",
+        "-s",
+        "--split",
         dest="part_size",
         type=int,
         default=0,
-        help="if given, the file will be split in parts of the given size in bytes",
+        help="if given, the file will be split in parts of the given size (in bytes)",
     )
     up_parser.add_argument(
         "-w",
@@ -134,7 +134,7 @@ def _get_parser() -> argparse.ArgumentParser:
         dest="max_workers",
         type=int,
         default=1,
-        help="Number of simultaneous uploads (default: %(default)s).",
+        help="Number of simultaneous uploads (default: %(default)s)",
     )
     up_parser.add_argument("file", nargs="+", help="file to upload")
 
@@ -145,7 +145,7 @@ def _get_parser() -> argparse.ArgumentParser:
         dest="max_workers",
         type=int,
         default=4,
-        help="Number of simultaneous downloads (default: %(default)s).",
+        help="Number of simultaneous downloads (default: %(default)s)",
     )
     down_parser.add_argument("url", nargs="+", help="url to download or txt file path")
 
