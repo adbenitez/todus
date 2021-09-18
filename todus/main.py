@@ -1,5 +1,9 @@
+"""CLI program."""
+
 import argparse
 import functools
+import json
+import logging.handlers
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -12,7 +16,33 @@ import tqdm
 
 from . import __version__
 from .client import ToDusClient2
-from .util import get_config, get_logger, normalize_phone_number, save_config
+from .util import normalize_phone_number
+
+
+def _get_config() -> dict:
+    with open(CONFIG_PATH, encoding="utf-8") as file:
+        return json.load(file)
+
+
+def _save_config(config: dict) -> None:
+    with open(CONFIG_PATH, "w", encoding="utf-8") as file:
+        return json.dump(config, file)
+
+
+def _get_logger() -> logging.Logger:
+    logger = logging.Logger(__name__.split(".", maxsplit=1)[0])
+    logger.parent = None
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+
+    log_path = os.path.join(PROGRAM_FOLDER, "log.txt")
+    fhandler = logging.handlers.RotatingFileHandler(
+        log_path, backupCount=3, maxBytes=1024 ** 2
+    )
+    fhandler.setLevel(logging.DEBUG)
+    fhandler.setFormatter(formatter)
+    logger.addHandler(fhandler)
+
+    return logger
 
 
 def _split_upload(
@@ -154,7 +184,7 @@ def _register(client: ToDusClient2, acc: dict, config: dict) -> None:
     acc["password"] = client.password
     if acc not in config["accounts"]:
         config["accounts"].append(acc)
-    save_config(config)
+    _save_config(config)
 
 
 def _get_password(phone: str, folder: str) -> str:
@@ -248,13 +278,13 @@ def main() -> None:
         parser = _get_parser()
         args = parser.parse_args()
 
-        config = get_config()
+        config = _get_config()
         if args.command == "login":
             acc = dict(phone_number=args.number, password="")
         else:
             acc = _select_account(args.number, config)
 
-        client = ToDusClient2(acc["phone_number"], acc["password"], logger=get_logger())
+        client = ToDusClient2(acc["phone_number"], acc["password"], logger=_get_logger())
         if not client.registered and args.command != "login":
             print("ERROR: account not authenticated, login first.")
             return
@@ -269,3 +299,15 @@ def main() -> None:
     except KeyboardInterrupt:
         print("\nOperation canceled by user.")
         os._exit(1)  # noqa
+
+
+PROGRAM_FOLDER = os.path.expanduser("~/.todus")
+CONFIG_PATH = os.path.join(PROGRAM_FOLDER, "config.json")
+if not os.path.exists(PROGRAM_FOLDER):
+    os.makedirs(PROGRAM_FOLDER)
+if not os.path.exists(CONFIG_PATH):
+    _save_config(
+        {
+            "accounts": [],
+        }
+    )
