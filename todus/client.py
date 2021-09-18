@@ -19,7 +19,6 @@ from .errors import AuthenticationError, EndOfStreamError
 from .util import generate_token
 
 _BUFFERSIZE = 1024 * 1024
-_lock = Lock()
 
 
 class ToDusClient:
@@ -34,6 +33,7 @@ class ToDusClient:
         self.version_name = version_name
         self.version_code = version_code
         self.logger = logger
+        self._lock = Lock()
 
         self.session = requests.Session()
         self.session.headers.update(
@@ -42,6 +42,89 @@ class ToDusClient:
             }
         )
         self.session.request = functools.partial(_request, self.session.request)  # type: ignore
+
+    @contextmanager
+    def _get_socket(self) -> Generator:
+        with self._lock:
+            context = ssl.create_default_context()
+            context.check_hostname = False
+            _socket = context.wrap_socket(socket.socket(socket.AF_INET))
+            _socket.settimeout(15)
+            _socket.connect(("im.todus.cu", 1756))
+            _socket.send(
+                b"<stream:stream xmlns='jc' o='im.todus.cu' xmlns:stream='x1' v='1.0'>"
+            )
+            with _socket:
+                yield _socket
+
+    def _reserve_url(self, token: str, filesize: int) -> tuple:
+        phone, authstr = _parse_token(token)
+        sid = generate_token(5)
+
+        with self._get_socket() as ssl_socket:
+            while True:
+                response = ssl_socket.recv(_BUFFERSIZE).decode()
+                if _negociate_start(response, ssl_socket, authstr, sid):
+                    continue
+
+                if f"t='result' i='{sid}-1'>" in response:
+                    ssl_socket.send(b"<en xmlns='x7' u='true' max='300'/>")
+                    ssl_socket.send(
+                        (
+                            "<iq i='"
+                            + sid
+                            + "-3' t='get'><query xmlns='todus:purl' type='1' persistent='false' size='"
+                            + str(filesize)
+                            + "' room=''></query></iq>"
+                        ).encode()
+                    )
+                    continue
+
+                if response.startswith("<ed u='true' max='300'"):
+                    ssl_socket.send(("<p i='" + sid + "-4'></p>").encode())
+                    continue
+
+                if response.startswith("<iq o='" + phone + "@im.todus.cu"):
+                    match = re.match(r".*put='(.*)' get='(.*)' stat.*", response)
+                    assert match, f"Unexpected response: {response}"
+                    up_url = match.group(1).replace("amp;", "")
+                    down_url = match.group(2)
+                    return (up_url, down_url)
+
+                if "<not-authorized/>" in response:
+                    raise AuthenticationError()
+
+                if not response:
+                    raise EndOfStreamError()
+
+    def _get_real_url(self, token: str, url: str) -> str:
+        authstr = _parse_token(token)[1]
+        sid = generate_token(5)
+
+        with self._get_socket() as ssl_socket:
+            while True:
+                response = ssl_socket.recv(_BUFFERSIZE).decode()
+                if _negociate_start(response, ssl_socket, authstr, sid):
+                    continue
+
+                if f"t='result' i='{sid}-1'>" in response:
+                    data = f"<iq i='{sid}-2' t='get'><query xmlns='todus:gurl' url='{url}'></query></iq>"
+                    ssl_socket.send(data.encode())
+                    continue
+
+                if (
+                    f"t='result' i='{sid}-2'>" in response
+                    and "status='200'" in response
+                ):
+                    match = re.match(".*du='(.*)' stat.*", response)
+                    assert match, f"Unexpected response: {response}"
+                    return match.group(1).replace("amp;", "")
+
+                if "<not-authorized/>" in response:
+                    raise AuthenticationError()
+
+                if not response:
+                    raise EndOfStreamError()
 
     @property
     def auth_ua(self) -> str:
@@ -126,7 +209,7 @@ class ToDusClient:
 
     def upload_file(self, token: str, data: bytes, size: int = None) -> str:
         """Upload data and return the download URL."""
-        up_url, down_url = _reserve_url(token, size or len(data))
+        up_url, down_url = self._reserve_url(token, size or len(data))
         headers = {
             "User-Agent": self.upload_ua,
             "Authorization": f"Bearer {token}",
@@ -145,7 +228,7 @@ class ToDusClient:
         Returns the file size.
         """
         temp_path = f"{path}.part"
-        url = _get_real_url(token, url)
+        url = self._get_real_url(token, url)
         headers = {
             "User-Agent": self.download_ua,
             "Authorization": f"Bearer {token}",
@@ -237,21 +320,6 @@ def _request(real_request: Callable, *args, **kwargs) -> requests.Response:
     return resp
 
 
-@contextmanager
-def _get_socket() -> Generator:
-    with _lock:
-        context = ssl.create_default_context()
-        context.check_hostname = False
-        _socket = context.wrap_socket(socket.socket(socket.AF_INET))
-        _socket.settimeout(15)
-        _socket.connect(("im.todus.cu", 1756))
-        _socket.send(
-            b"<stream:stream xmlns='jc' o='im.todus.cu' xmlns:stream='x1' v='1.0'>"
-        )
-        with _socket:
-            yield _socket
-
-
 def _negociate_start(
     response: str, ssl_socket: ssl.SSLSocket, authstr: bytes, sid: str
 ) -> bool:
@@ -285,76 +353,3 @@ def _parse_token(token: str) -> tuple:
     phone = json.loads(b64decode(token.split(".")[1]).decode())["username"]
     authstr = b64encode((chr(0) + phone + chr(0) + token).encode("utf-8"))
     return phone, authstr
-
-
-def _reserve_url(token: str, filesize: int) -> tuple:
-    """Reserve file URL to upload.
-
-    Returns a tuple with upload and download URLs.
-    """
-    phone, authstr = _parse_token(token)
-    sid = generate_token(5)
-
-    with _get_socket() as ssl_socket:
-        while True:
-            response = ssl_socket.recv(_BUFFERSIZE).decode()
-            if _negociate_start(response, ssl_socket, authstr, sid):
-                continue
-
-            if f"t='result' i='{sid}-1'>" in response:
-                ssl_socket.send(b"<en xmlns='x7' u='true' max='300'/>")
-                ssl_socket.send(
-                    (
-                        "<iq i='"
-                        + sid
-                        + "-3' t='get'><query xmlns='todus:purl' type='1' persistent='false' size='"
-                        + str(filesize)
-                        + "' room=''></query></iq>"
-                    ).encode()
-                )
-                continue
-
-            if response.startswith("<ed u='true' max='300'"):
-                ssl_socket.send(("<p i='" + sid + "-4'></p>").encode())
-                continue
-
-            if response.startswith("<iq o='" + phone + "@im.todus.cu"):
-                match = re.match(r".*put='(.*)' get='(.*)' stat.*", response)
-                assert match, f"Unexpected response: {response}"
-                up_url = match.group(1).replace("amp;", "")
-                down_url = match.group(2)
-                return (up_url, down_url)
-
-            if "<not-authorized/>" in response:
-                raise AuthenticationError()
-
-            if not response:
-                raise EndOfStreamError()
-
-
-def _get_real_url(token: str, url: str) -> str:
-    """Get authenticated URL."""
-    authstr = _parse_token(token)[1]
-    sid = generate_token(5)
-
-    with _get_socket() as ssl_socket:
-        while True:
-            response = ssl_socket.recv(_BUFFERSIZE).decode()
-            if _negociate_start(response, ssl_socket, authstr, sid):
-                continue
-
-            if f"t='result' i='{sid}-1'>" in response:
-                data = f"<iq i='{sid}-2' t='get'><query xmlns='todus:gurl' url='{url}'></query></iq>"
-                ssl_socket.send(data.encode())
-                continue
-
-            if f"t='result' i='{sid}-2'>" in response and "status='200'" in response:
-                match = re.match(".*du='(.*)' stat.*", response)
-                assert match, f"Unexpected response: {response}"
-                return match.group(1).replace("amp;", "")
-
-            if "<not-authorized/>" in response:
-                raise AuthenticationError()
-
-            if not response:
-                raise EndOfStreamError()
