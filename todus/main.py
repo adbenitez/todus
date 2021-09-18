@@ -113,7 +113,7 @@ def _upload_task(
             client.logger.exception(err)
             time.sleep(15)
             client.login()
-            tqdm.tqdm.write(f"Retrying: {name}")
+            tqdm.tqdm.write(f"Retrying: {name} (ERROR: {err})")
 
 
 def _get_parser() -> argparse.ArgumentParser:
@@ -258,7 +258,7 @@ def _download_task(download: tuple, client: ToDusClient2, pbar: tqdm.tqdm) -> No
             client.logger.exception(err)
             time.sleep(15)
             client.login()
-            tqdm.tqdm.write(f"Retrying: {name} ({url_display})")
+            tqdm.tqdm.write(f"Retrying: {name} (ERROR: {err})")
 
 
 def _select_account(phone_number: str, config: dict) -> dict:
