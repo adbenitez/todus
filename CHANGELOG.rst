@@ -9,14 +9,16 @@ Changelog
 - removed ``todus.util.ResultProcess`` and ``todus.errors.AbortError`` classes.
 - avoid incomplete file downloads, check file size match ``Content-Length``.
 - ``todus.client.ToDusClient.download_file()`` will now resume partial downloads.
+- added logger parameter to ``todus.client.ToDusClient``.
 - CLI: now links can be downloaded concurrently.
 - CLI: register ``todus`` command, should be available in the shell.
 - CLI: added progress bar.
 - CLI: fixed bug that prevented from using "login" subcommand.
 - CLI: skip already downloaded/uploaded files.
-- added logging to ``todus.client`` and make the CLI write logs to ``~/.todus/log.txt`` file.
-- renamed ``--part-size`` option to ``--split``.
-- removed ``--config-folder`` option.
+- CLI: renamed ``--part-size`` option to ``--split``.
+- CLI: removed ``--config-folder`` option.
+- CLI: save logs in ``~/.todus/``.
+- CLI: terminate program gracefully on ``Ctl+C``.
 
 0.1.0
 -----
