@@ -1,4 +1,5 @@
 """CLI program."""
+# pylama:ignore=R0912,C901,R0913
 
 import argparse
 import functools
@@ -8,6 +9,8 @@ import os
 import time
 from concurrent.futures import ThreadPoolExecutor
 from tempfile import TemporaryDirectory
+from threading import Lock
+from typing import TextIO
 from urllib.parse import quote_plus, unquote_plus
 
 import multivolumefile
@@ -74,41 +77,49 @@ def _split_upload(
         parts = sorted(os.listdir(tempdir))
         pool = ThreadPoolExecutor(max_workers=max_workers)
         pbar = tqdm.tqdm(total=len(parts))
-        task = functools.partial(
-            _upload_task,
-            client=client,
-            folder=tempdir,
-            pbar=pbar,
-            uploaded=uploaded_parts,
-        )
-        client.login()
         with open(path, "a", encoding="utf-8") as txt:
-            for url, name in zip(pool.map(task, parts), parts):
-                if url:
-                    txt.write(f"{url}\t{name}\n")  # TODO: do this in the task
-                    uploaded_parts.append(name)
+            task = functools.partial(
+                _upload_task,
+                client=client,
+                folder=tempdir,
+                pbar=pbar,
+                uploaded=uploaded_parts,
+                txt_file=txt,
+                lock=Lock(),
+            )
+            client.login()
+            for _ in pool.map(task, parts):
                 pbar.refresh()
     return path
 
 
 def _upload_task(
-    name: str, folder: str, uploaded: list, client: ToDusClient2, pbar: tqdm.tqdm
-) -> str:
+    name: str,
+    folder: str,
+    uploaded: list,
+    client: ToDusClient2,
+    pbar: tqdm.tqdm,
+    txt_file: TextIO,
+    lock: Lock,
+) -> None:
     path = os.path.join(folder, name)
     if name in uploaded:
         tqdm.tqdm.write(f"Skipping: {name}")
         os.remove(path)
         pbar.update(1)
-        return ""
+        return
     tqdm.tqdm.write(f"Uploading: {name}")
     with open(path, "rb") as file:
         part = file.read()
     while True:
         try:
             url = client.upload_file(part, len(part))
+            with lock:
+                txt_file.write(f"{url}\t{name}\n")
+                uploaded.append(name)
             os.remove(path)
             pbar.update(1)
-            return url
+            break
         except Exception as err:
             client.logger.exception(err)
             time.sleep(15)
@@ -234,10 +245,9 @@ def _download(client: ToDusClient2, args) -> None:
 
     pool = ThreadPoolExecutor(max_workers=args.max_workers)
     pbar = tqdm.tqdm(total=len(downloads))
+    task = functools.partial(_download_task, client=client, pbar=pbar)
     client.login()
-    for _ in pool.map(
-        functools.partial(_download_task, client=client, pbar=pbar), downloads
-    ):
+    for _ in pool.map(task, downloads):
         pbar.refresh()
 
 
@@ -276,7 +286,6 @@ def _select_account(phone_number: str, config: dict) -> dict:
     return acc
 
 
-# pylama:ignore=R0912,C901
 def main() -> None:
     """CLI program."""
     try:
