@@ -171,6 +171,8 @@ def _get_parser() -> argparse.ArgumentParser:
     )
     down_parser.add_argument("url", nargs="+", help="url to download or txt file path")
 
+    subparsers.add_parser(name="token", help="get a token")
+
     return parser
 
 
@@ -284,7 +286,9 @@ def main() -> None:
         else:
             acc = _select_account(args.number, config)
 
-        client = ToDusClient2(acc["phone_number"], acc["password"], logger=_get_logger())
+        client = ToDusClient2(
+            acc["phone_number"], acc["password"], logger=_get_logger()
+        )
         if not client.registered and args.command != "login":
             print("ERROR: account not authenticated, login first.")
             return
@@ -294,6 +298,9 @@ def main() -> None:
             _download(client, args)
         elif args.command == "login":
             _register(client, acc, config)
+        elif args.command == "token":
+            client.login()
+            print(client.token)
         else:
             parser.print_usage()
     except KeyboardInterrupt:

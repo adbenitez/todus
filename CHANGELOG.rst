@@ -20,6 +20,7 @@ Changelog
 - CLI: save logs in ``~/.todus/``.
 - CLI: terminate program gracefully on ``Ctl+C``.
 - CLI: improved account management, now logins are saved in ``~/.todus/config.json``.
+- CLI: added ``token`` subcommand to get a new token that could be used in other ToDus tools.
 
 0.1.0
 -----
