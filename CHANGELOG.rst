@@ -16,6 +16,7 @@ Changelog
 - CLI: skip already downloaded/uploaded files.
 - added logging to ``todus.client`` and make the CLI write logs to ``~/.todus/log.txt`` file.
 - renamed ``--part-size`` option to ``--split``.
+- removed ``--config-folder`` option.
 
 0.1.0
 -----

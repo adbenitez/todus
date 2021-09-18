@@ -12,7 +12,7 @@ import tqdm
 
 from . import __version__
 from .client import ToDusClient2
-from .util import get_logger
+from .util import PROGRAM_FOLDER, get_logger
 
 
 def _split_upload(
@@ -98,14 +98,6 @@ def _get_parser() -> argparse.ArgumentParser:
         metavar="PHONE-NUMBER",
         help="account's phone number",
         required=True,
-    )
-    parser.add_argument(
-        "-c",
-        "--config-folder",
-        dest="folder",
-        type=str,
-        default="",
-        help="folder where account configuration will be saved/loaded",
     )
     parser.add_argument(
         "-v",
@@ -236,7 +228,7 @@ def main() -> None:
     """CLI program."""
     parser = _get_parser()
     args = parser.parse_args()
-    password = _get_password(args.number, args.folder)
+    password = _get_password(args.number, PROGRAM_FOLDER)
     if not password and args.command != "login":
         print("ERROR: account not authenticated, login first.")
         return
@@ -246,6 +238,6 @@ def main() -> None:
     elif args.command == "download":
         _download(client, args)
     elif args.command == "login":
-        _register(client, args.folder)
+        _register(client, PROGRAM_FOLDER)
     else:
         parser.print_usage()
