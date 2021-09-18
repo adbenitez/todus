@@ -1,8 +1,8 @@
 Changelog
 =========
 
-`Unreleased`_
--------------
+`1.0.0`_
+--------
 
 - added ``todus.util.normalize_phone_number()`` utility.
 - added ``todus.client.ToDusClient2`` class.
@@ -29,4 +29,5 @@ Changelog
 
 - initial release
 
-.. _Unreleased: https://github.com/adbenitez/todus/compare/v0.1.0...HEAD
+.. _Unreleased: https://github.com/adbenitez/todus/compare/v1.0.0...HEAD
+.. _1.0.0: https://github.com/adbenitez/todus/compare/v0.1.0...v1.0.0
