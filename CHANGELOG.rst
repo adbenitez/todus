@@ -10,6 +10,7 @@ Changelog
 - avoid incomplete file downloads, check file size match ``Content-Length``.
 - ``todus.client.ToDusClient.download_file()`` will now resume partial downloads.
 - added logger parameter to ``todus.client.ToDusClient``.
+- updated fake client version.
 - CLI: now links can be downloaded concurrently.
 - CLI: register ``todus`` command, should be available in the shell.
 - CLI: added progress bar.
