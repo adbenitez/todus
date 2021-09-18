@@ -15,7 +15,9 @@ from .client import ToDusClient2
 from .util import get_logger
 
 
-def _split_upload(client: ToDusClient2, path: str, part_size: int) -> str:
+def _split_upload(
+    client: ToDusClient2, path: str, part_size: int, max_workers: int
+) -> str:
     with open(path, "rb") as file:
         data = file.read()
     filename = os.path.basename(path)
@@ -40,7 +42,7 @@ def _split_upload(client: ToDusClient2, path: str, part_size: int) -> str:
                 "Uploads txt found with %s parts already uploaded", len(uploaded_parts)
             )
         parts = sorted(os.listdir(tempdir))
-        pool = ThreadPoolExecutor(max_workers=1)
+        pool = ThreadPoolExecutor(max_workers=max_workers)
         pbar = tqdm.tqdm(total=len(parts))
         task = functools.partial(
             _upload_task,
@@ -126,9 +128,25 @@ def _get_parser() -> argparse.ArgumentParser:
         default=0,
         help="if given, the file will be split in parts of the given size in bytes",
     )
+    up_parser.add_argument(
+        "-w",
+        "--max-workers",
+        dest="max_workers",
+        type=int,
+        default=1,
+        help="Number of simultaneous uploads (default: %(default)s).",
+    )
     up_parser.add_argument("file", nargs="+", help="file to upload")
 
     down_parser = subparsers.add_parser(name="download", help="download file")
+    down_parser.add_argument(
+        "-w",
+        "--max-workers",
+        dest="max_workers",
+        type=int,
+        default=4,
+        help="Number of simultaneous downloads (default: %(default)s).",
+    )
     down_parser.add_argument("url", nargs="+", help="url to download or txt file path")
 
     return parser
@@ -156,7 +174,7 @@ def _upload(client: ToDusClient2, args) -> None:
     for path in args.file:
         if args.part_size:
             tqdm.tqdm.write(f"Splitting: {path}")
-            txt = _split_upload(client, path, args.part_size)
+            txt = _split_upload(client, path, args.part_size, args.max_workers)
             tqdm.tqdm.write(f"TXT: {txt}")
         else:
             tqdm.tqdm.write(f"Uploading: {path}")
@@ -185,7 +203,7 @@ def _download(client: ToDusClient2, args) -> None:
                         url, name = line.split(maxsplit=1)
                         downloads.append((url, name))
 
-    pool = ThreadPoolExecutor(max_workers=4)
+    pool = ThreadPoolExecutor(max_workers=args.max_workers)
     pbar = tqdm.tqdm(total=len(downloads))
     client.login()
     for _ in pool.map(
