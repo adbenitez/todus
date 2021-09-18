@@ -1,6 +1,5 @@
 import argparse
 import functools
-import logging
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -13,9 +12,7 @@ import tqdm
 
 from . import __version__
 from .client import ToDusClient2
-
-logging.basicConfig(format="%(levelname)s - %(message)s", level=logging.INFO)
-logger = logging
+from .util import get_logger
 
 
 def _split_upload(client: ToDusClient2, path: str, part_size: int) -> str:
@@ -39,6 +36,9 @@ def _split_upload(client: ToDusClient2, path: str, part_size: int) -> str:
                     line = line.strip()
                     if line:
                         uploaded_parts.append(line.split(maxsplit=1)[1])
+            client.logger.debug(
+                "Uploads txt found with %s parts already uploaded", len(uploaded_parts)
+            )
         parts = sorted(os.listdir(tempdir))
         pool = ThreadPoolExecutor(max_workers=1)
         pbar = tqdm.tqdm(total=len(parts))
@@ -78,7 +78,7 @@ def _upload_task(
             pbar.update(1)
             return url
         except Exception as err:
-            logger.exception(err)
+            client.logger.exception(err)
             time.sleep(15)
             client.login()
             tqdm.tqdm.write(f"Retrying: {name}")
@@ -152,8 +152,7 @@ def _get_password(phone: str, folder: str) -> str:
     return ""
 
 
-def _upload(password: str, args) -> None:
-    client = ToDusClient2(args.number, password)
+def _upload(client: ToDusClient2, args) -> None:
     for path in args.file:
         if args.part_size:
             tqdm.tqdm.write(f"Splitting: {path}")
@@ -172,7 +171,7 @@ def _upload(password: str, args) -> None:
             tqdm.tqdm.write(f"URL: {url}")
 
 
-def _download(password: str, args) -> None:
+def _download(client: ToDusClient2, args) -> None:
     downloads = []
     for url in args.url:
         if url.startswith("http"):
@@ -188,7 +187,6 @@ def _download(password: str, args) -> None:
 
     pool = ThreadPoolExecutor(max_workers=4)
     pbar = tqdm.tqdm(total=len(downloads))
-    client = ToDusClient2(args.number, password)
     client.login()
     for _ in pool.map(
         functools.partial(_download_task, client=client, pbar=pbar), downloads
@@ -210,7 +208,7 @@ def _download_task(download: tuple, client: ToDusClient2, pbar: tqdm.tqdm) -> No
             pbar.update(1)
             break
         except Exception as err:
-            logger.exception(err)
+            client.logger.exception(err)
             time.sleep(15)
             client.login()
             tqdm.tqdm.write(f"Retrying: {name} ({url_display})")
@@ -224,11 +222,12 @@ def main() -> None:
     if not password and args.command != "login":
         print("ERROR: account not authenticated, login first.")
         return
+    client = ToDusClient2(args.number, password, logger=get_logger())
     if args.command == "upload":
-        _upload(password, args)
+        _upload(client, args)
     elif args.command == "download":
-        _download(password, args)
+        _download(client, args)
     elif args.command == "login":
-        _register(ToDusClient2(args.number), args.folder)
+        _register(client, args.folder)
     else:
         parser.print_usage()

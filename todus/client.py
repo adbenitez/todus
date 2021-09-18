@@ -1,4 +1,5 @@
 import functools
+import logging
 import os
 import string
 import time
@@ -15,10 +16,14 @@ class ToDusClient:
     """Class to interact with the ToDus API."""
 
     def __init__(
-        self, version_name: str = "0.38.34", version_code: str = "21805"
+        self,
+        version_name: str = "0.38.34",
+        version_code: str = "21805",
+        logger: logging.Logger = logging,  # type: ignore
     ) -> None:
         self.version_name = version_name
         self.version_code = version_code
+        self.logger = logger
 
         self.session = requests.Session()
         self.session.headers.update(
@@ -150,12 +155,15 @@ class ToDusClient:
                         try:
                             for chunk in resp.iter_content(chunk_size=10):
                                 file.write(chunk)
-                        except requests.exceptions.ConnectionError:
-                            time.sleep(5)  # TODO: use logger
-                except IncompleteRead:
-                    time.sleep(5)  # TODO: use logger
-                except requests.exceptions.ReadTimeout:
-                    time.sleep(5)  # TODO: use logger
+                        except requests.exceptions.ConnectionError as err:
+                            self.logger.exception(err)
+                            time.sleep(5)
+                except IncompleteRead as err:
+                    self.logger.exception(err)
+                    time.sleep(5)
+                except requests.exceptions.ReadTimeout as err:
+                    self.logger.exception(err)
+                    time.sleep(5)
                 pos = file.tell()
         os.rename(temp_path, path)
         return size

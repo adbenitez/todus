@@ -1,6 +1,29 @@
+import logging.handlers
+import os
 import random
 import re
 import string
+
+PROGRAM_FOLDER = os.path.expanduser("~/.todus")
+if not os.path.exists(PROGRAM_FOLDER):
+    os.makedirs(PROGRAM_FOLDER)
+
+
+def get_logger() -> logging.Logger:
+    """Create file logger."""
+    logger = logging.Logger(__name__.split(".", maxsplit=1)[0])
+    logger.parent = None
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+
+    log_path = os.path.join(PROGRAM_FOLDER, "log.txt")
+    fhandler = logging.handlers.RotatingFileHandler(
+        log_path, backupCount=3, maxBytes=1024 ** 2
+    )
+    fhandler.setLevel(logging.DEBUG)
+    fhandler.setFormatter(formatter)
+    logger.addHandler(fhandler)
+
+    return logger
 
 
 def generate_token(length: int) -> str:
