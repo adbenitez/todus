@@ -178,6 +178,16 @@ class ToDusClient2(ToDusClient):
         self.password = password
         self.token = ""
 
+    @property
+    def registered(self) -> bool:
+        """True if this client has a phone_number and password set."""
+        return bool(self.phone_number and self.password)
+
+    @property
+    def logged(self) -> bool:
+        """True if client is logged in."""
+        return bool(self.token)
+
     def request_code(self) -> None:  # noqa
         """Request server to send verification SMS code."""
         super().request_code(self.phone_number)

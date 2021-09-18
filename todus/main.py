@@ -12,7 +12,7 @@ import tqdm
 
 from . import __version__
 from .client import ToDusClient2
-from .util import PROGRAM_FOLDER, get_logger
+from .util import get_config, get_logger, normalize_phone_number, save_config
 
 
 def _split_upload(
@@ -96,8 +96,8 @@ def _get_parser() -> argparse.ArgumentParser:
         "--number",
         dest="number",
         metavar="PHONE-NUMBER",
-        help="account's phone number",
-        required=True,
+        default="",
+        help="account's phone number, if not given the default account will be used",
     )
     parser.add_argument(
         "-v",
@@ -144,14 +144,17 @@ def _get_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _register(client: ToDusClient2, folder: str) -> None:
+def _register(client: ToDusClient2, acc: dict, config: dict) -> None:
+    if not client.phone_number:
+        client.phone_number = normalize_phone_number(input("Enter Phone Number: "))
     client.request_code()
-    pin = input("Enter PIN:").strip()
+    pin = input("Enter PIN: ").strip()
     client.validate_code(pin)
-    with open(
-        os.path.join(folder, client.phone_number + ".cfg"), "w", encoding="utf-8"
-    ) as file:
-        file.write("password=" + client.password)
+    acc["phone_number"] = client.phone_number
+    acc["password"] = client.password
+    if acc not in config["accounts"]:
+        config["accounts"].append(acc)
+    save_config(config)
 
 
 def _get_password(phone: str, folder: str) -> str:
@@ -224,22 +227,43 @@ def _download_task(download: tuple, client: ToDusClient2, pbar: tqdm.tqdm) -> No
             tqdm.tqdm.write(f"Retrying: {name} ({url_display})")
 
 
+def _select_account(phone_number: str, config: dict) -> dict:
+    if phone_number:
+        phone_number = normalize_phone_number(phone_number)
+        for acc in config["accounts"]:
+            if acc["phone_number"] == phone_number:
+                return acc
+        return dict(phone_number=phone_number, password="")
+
+    if config["accounts"]:
+        acc = config["accounts"][0]
+    else:
+        acc = dict(phone_number="", password="")
+    return acc
+
+
 def main() -> None:
     """CLI program."""
     try:
         parser = _get_parser()
         args = parser.parse_args()
-        password = _get_password(args.number, PROGRAM_FOLDER)
-        if not password and args.command != "login":
+
+        config = get_config()
+        if args.command == "login":
+            acc = dict(phone_number=args.number, password="")
+        else:
+            acc = _select_account(args.number, config)
+
+        client = ToDusClient2(acc["phone_number"], acc["password"], logger=get_logger())
+        if not client.registered and args.command != "login":
             print("ERROR: account not authenticated, login first.")
             return
-        client = ToDusClient2(args.number, password, logger=get_logger())
         if args.command == "upload":
             _upload(client, args)
         elif args.command == "download":
             _download(client, args)
         elif args.command == "login":
-            _register(client, PROGRAM_FOLDER)
+            _register(client, acc, config)
         else:
             parser.print_usage()
     except KeyboardInterrupt:

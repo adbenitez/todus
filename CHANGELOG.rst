@@ -19,6 +19,7 @@ Changelog
 - CLI: removed ``--config-folder`` option.
 - CLI: save logs in ``~/.todus/``.
 - CLI: terminate program gracefully on ``Ctl+C``.
+- CLI: improved account management, now logins are saved in ``~/.todus/config.json``.
 
 0.1.0
 -----
