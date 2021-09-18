@@ -244,4 +244,4 @@ def main() -> None:
             parser.print_usage()
     except KeyboardInterrupt:
         print("\nOperation canceled by user.")
-        os._exit(1)
+        os._exit(1)  # noqa
