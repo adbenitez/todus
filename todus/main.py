@@ -276,6 +276,7 @@ def _select_account(phone_number: str, config: dict) -> dict:
     return acc
 
 
+# pylama:ignore=R0912,C901
 def main() -> None:
     """CLI program."""
     try:
