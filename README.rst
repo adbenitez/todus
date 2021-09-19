@@ -28,6 +28,10 @@ To install the latest stable version run::
 
   pip install -U todus
 
+To install the latest stable version and enable the 7z multivolume feature for split uploads::
+
+  pip install -U 'todus[7z]'
+
 To test the unreleased version run::
 
   pip install todus git+https://github.com/adbenitez/todus

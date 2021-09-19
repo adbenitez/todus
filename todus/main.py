@@ -14,12 +14,20 @@ from typing import TextIO
 from urllib.parse import quote_plus, unquote_plus
 
 import multivolumefile
-import py7zr
 import tqdm
 
 from . import __version__
 from .client import ToDusClient2
 from .util import normalize_phone_number
+
+try:
+    import py7zr
+
+    ARCHIVE_EXT = "7z"
+except ImportError:
+    import zipfile
+
+    ARCHIVE_EXT = "zip"
 
 
 def _get_config() -> dict:
@@ -56,12 +64,16 @@ def _split_upload(
     filename = os.path.basename(path)
     with TemporaryDirectory() as tempdir:
         with multivolumefile.open(
-            os.path.join(tempdir, filename + ".7z"),
+            os.path.join(tempdir, f"{filename}.{ARCHIVE_EXT}"),
             "wb",
             volume=part_size,
         ) as vol:
-            with py7zr.SevenZipFile(vol, "w") as archive:
-                archive.writestr(data, filename)
+            if ARCHIVE_EXT == "7z":
+                with py7zr.SevenZipFile(vol, "w") as archive:
+                    archive.writestr(data, filename)
+            else:
+                with zipfile.ZipFile(vol, "w", zipfile.ZIP_DEFLATED) as archive:  # type: ignore
+                    archive.writestr(filename, data)
         del data
         path = os.path.abspath(filename + ".txt")
         uploaded_parts = []

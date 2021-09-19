@@ -1,6 +1,11 @@
 Changelog
 =========
 
+`Unreleased`_
+-------------
+
+- made ``py7zr`` an optional dependency, use ``zipfile`` if ``py7zr`` is not installed.
+
 `1.0.0`_
 --------
 
