@@ -15,7 +15,7 @@ from typing import Callable, Generator
 
 import requests.exceptions
 
-from .errors import AuthenticationError, EndOfStreamError
+from .errors import AuthenticationError, EndOfStreamError, TokenExpiredError
 from .util import generate_token
 
 _BUFFERSIZE = 1024 * 1024
@@ -92,7 +92,7 @@ class ToDusClient:
                     return (up_url, down_url)
 
                 if "<not-authorized/>" in response:
-                    raise AuthenticationError()
+                    raise TokenExpiredError()
 
                 if not response:
                     raise EndOfStreamError()
@@ -121,7 +121,7 @@ class ToDusClient:
                     return match.group(1).replace("amp;", "")
 
                 if "<not-authorized/>" in response:
-                    raise AuthenticationError()
+                    raise TokenExpiredError()
 
                 if not response:
                     raise EndOfStreamError()
@@ -203,6 +203,8 @@ class ToDusClient:
         )
         url = "https://auth.todus.cu/v2/auth/token"
         with self.session.post(url, data=data, headers=headers) as resp:
+            if resp.status_code == 403:
+                raise AuthenticationError()
             resp.raise_for_status()
             token = "".join([c for c in resp.text if c in string.printable])
             return token
