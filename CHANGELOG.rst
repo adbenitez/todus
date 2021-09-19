@@ -1,10 +1,10 @@
 Changelog
 =========
 
-`Unreleased`_
--------------
+`1.1.0`_
+--------
 
-- made ``py7zr`` an optional dependency, use ``zipfile`` if ``py7zr`` is not installed.
+- ``py7zr`` is now an optional dependency, ``zipfile`` will be used if ``py7zr`` is not installed.
 
 `1.0.0`_
 --------
@@ -34,5 +34,6 @@ Changelog
 
 - initial release
 
-.. _Unreleased: https://github.com/adbenitez/todus/compare/v1.0.0...HEAD
+.. _Unreleased: https://github.com/adbenitez/todus/compare/v1.1.0...HEAD
+.. _1.1.0: https://github.com/adbenitez/todus/compare/v1.0.0...v1.1.0
 .. _1.0.0: https://github.com/adbenitez/todus/compare/v0.1.0...v1.0.0
