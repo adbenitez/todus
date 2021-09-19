@@ -69,7 +69,7 @@ This is an example of how you would use this library in your projects:
 
   from todus.client import ToDusClient2
 
-  client = ToDusClient2("5312345678")
+  client = ToDusClient2(phone_number="5312345678")
 
   # this only needs to be done once:
   client.request_code()  # request SMS to start a new session
