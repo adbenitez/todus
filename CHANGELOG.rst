@@ -1,6 +1,11 @@
 Changelog
 =========
 
+`Unreleased`_
+-------------
+
+- CLI: print program usage if no sub-command is provided.
+
 `1.1.0`_
 --------
 

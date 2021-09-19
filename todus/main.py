@@ -313,7 +313,7 @@ def main() -> None:
         client = ToDusClient2(
             acc["phone_number"], acc["password"], logger=_get_logger()
         )
-        if not client.registered and args.command not in ("login", "accounts"):
+        if not client.registered and args.command not in ("", "login", "accounts"):
             print("ERROR: account not authenticated, login first.")
             return
         if args.command == "upload":
