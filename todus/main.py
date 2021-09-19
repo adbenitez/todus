@@ -18,6 +18,7 @@ import tqdm
 
 from . import __version__
 from .client import ToDusClient2
+from .errors import AuthenticationError
 from .util import normalize_phone_number
 
 try:
@@ -334,6 +335,10 @@ def main() -> None:
                     print(f"{acc['phone_number']} ({status})")
         else:
             parser.print_usage()
+    except AuthenticationError:
+        acc["password"] = ""
+        _save_config(config)
+        print(f"ERROR: Session expired for account: {acc['phone_number']}")
     except KeyboardInterrupt:
         print("\nOperation canceled by user.")
         os._exit(1)  # noqa
