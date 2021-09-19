@@ -7,6 +7,7 @@ Changelog
 - ``todus.errors.AuthenticationError`` is now raised when account fails to login, ``todus.errors.TokenExpiredError`` will be raised when token expired.
 - CLI: print program usage if no sub-command is provided.
 - CLI: if session expired account password is deleted (session is logged out)
+- CLI: added ``--remove`` and ``--default`` options to ``accounts`` subcomand.
 
 `1.1.0`_
 --------

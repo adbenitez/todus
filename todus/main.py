@@ -197,7 +197,21 @@ def _get_parser() -> argparse.ArgumentParser:
 
     subparsers.add_parser(name="token", help="get a token")
 
-    subparsers.add_parser(name="accounts", help="list accounts")
+    acc_parser = subparsers.add_parser(name="accounts", help="list accounts")
+    acc_parser.add_argument(
+        "-r",
+        "--remove",
+        metavar="ACCOUNT",
+        default="",
+        help="Remove account from accounts list",
+    )
+    acc_parser.add_argument(
+        "-d",
+        "--default",
+        metavar="ACCOUNT",
+        default="",
+        help="Set account as default account",
+    )
 
     return parser
 
@@ -299,6 +313,18 @@ def _select_account(phone_number: str, config: dict) -> dict:
     return acc
 
 
+def _list_accounts(config: dict) -> None:
+    if not config["accounts"]:
+        print("No accounts added yet.")
+    else:
+        def_acc = config["accounts"][0]
+        for acc in config["accounts"]:
+            status = "logged" if acc["password"] else "not logged"
+            print(
+                f"{acc['phone_number']} ({status}){' [default]' if acc is def_acc else ''}"
+            )
+
+
 def main() -> None:
     """CLI program."""
     try:
@@ -327,12 +353,27 @@ def main() -> None:
             client.login()
             print(client.token)
         elif args.command == "accounts":
-            if not config["accounts"]:
-                print("No accounts added yet.")
-            else:
+            if args.remove:
                 for acc in config["accounts"]:
-                    status = "logged" if acc["password"] else "not logged"
-                    print(f"{acc['phone_number']} ({status})")
+                    if args.remove == acc["phone_number"]:
+                        config["accounts"].remove(acc)
+                        _save_config(config)
+                        print(f"Account {acc['phone_number']!r} removed.")
+                        break
+                else:
+                    print(f"ERROR: Account {args.remove!r} not found.")
+            elif args.default:
+                for acc in config["accounts"]:
+                    if args.default == acc["phone_number"]:
+                        config["accounts"].remove(acc)
+                        config["accounts"].insert(0, acc)
+                        _save_config(config)
+                        print(f"Account {acc['phone_number']!r} set as default.")
+                        break
+                else:
+                    print(f"ERROR: Account {args.default!r} not found.")
+            else:
+                _list_accounts(config)
         else:
             parser.print_usage()
     except AuthenticationError:
