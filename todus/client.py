@@ -304,7 +304,7 @@ class ToDusClient2(ToDusClient):
     def upload_file(self, data: bytes, size: int = None, t: int = 1) -> str:  # noqa
         """Upload data and return the download URL."""
         assert self.token, "Token needed"
-        return super().upload_file(self.token, data, size)
+        return super().upload_file(self.token, data, size, t)
 
     def download_file(self, url: str, path: str) -> int:  # noqa
         """Download file URL.
