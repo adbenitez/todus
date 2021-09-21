@@ -57,7 +57,7 @@ class ToDusClient:
             with _socket:
                 yield _socket
 
-    def _reserve_url(self, token: str, filesize: int) -> tuple:
+    def _reserve_url(self, token: str, filesize: int, t: int) -> tuple:
         phone, authstr = _parse_token(token)
         sid = generate_token(5)
 
@@ -73,7 +73,9 @@ class ToDusClient:
                         (
                             "<iq i='"
                             + sid
-                            + "-3' t='get'><query xmlns='todus:purl' type='1' persistent='false' size='"
+                            + "-3' t='get'><query xmlns='todus:purl' type='"
+                            + str(t)
+                            + "' persistent='false' size='"
                             + str(filesize)
                             + "' room=''></query></iq>"
                         ).encode()
@@ -209,9 +211,9 @@ class ToDusClient:
             token = "".join([c for c in resp.text if c in string.printable])
             return token
 
-    def upload_file(self, token: str, data: bytes, size: int = None) -> str:
+    def upload_file(self, token: str, data: bytes, size: int = None, t: int = 1) -> str:
         """Upload data and return the download URL."""
-        up_url, down_url = self._reserve_url(token, size or len(data))
+        up_url, down_url = self._reserve_url(token, size or len(data), t)
         headers = {
             "User-Agent": self.upload_ua,
             "Authorization": f"Bearer {token}",
