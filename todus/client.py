@@ -212,7 +212,16 @@ class ToDusClient:
             return token
 
     def upload_file(self, token: str, data: bytes, size: int = None, t: int = 1) -> str:
-        """Upload data and return the download URL."""
+        """Upload data and return the download URL.
+        t: url type used for uploading (default 1)
+          0 - file
+          1 - voice
+          2 - audio
+          3 - video
+          4 - picture
+          5 - profile
+          6 - profile thumbnail"""
+        assert t in range(7), f"'{t}' is'nt valid type"
         up_url, down_url = self._reserve_url(token, size or len(data), t)
         headers = {
             "User-Agent": self.upload_ua,
@@ -302,7 +311,16 @@ class ToDusClient2(ToDusClient):
         self.token = super().login(self.phone_number, self.password)
 
     def upload_file(self, data: bytes, size: int = None, t: int = 1) -> str:  # noqa
-        """Upload data and return the download URL."""
+        """Upload data and return the download URL.
+        t: url type used for uploading (default 1)
+          0 - file
+          1 - voice
+          2 - audio
+          3 - video
+          4 - picture
+          5 - profile
+          6 - profile thumbnail"""
+        assert t in range(7), f"'{t}' is'nt valid type"
         assert self.token, "Token needed"
         return super().upload_file(self.token, data, size, t)
 
