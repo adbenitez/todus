@@ -68,7 +68,7 @@ class ToDusClient:
             with _socket:
                 yield _socket
 
-    def _reserve_url(self, token: str, filesize: int, t: int) -> tuple:
+    def _reserve_url(self, token: str, filesize: int, file_type: FileType) -> tuple:
         phone, authstr = _parse_token(token)
         sid = generate_token(5)
 
@@ -85,7 +85,7 @@ class ToDusClient:
                             "<iq i='"
                             + sid
                             + "-3' t='get'><query xmlns='todus:purl' type='"
-                            + str(t)
+                            + str(file_type)
                             + "' persistent='false' size='"
                             + str(filesize)
                             + "' room=''></query></iq>"
@@ -224,8 +224,7 @@ class ToDusClient:
 
     def upload_file(self, token: str, data: bytes, size: int = None, file_type: FileType = FileType.VOICE) -> str:
         """Upload data and return the download URL."""
-        assert t in range(7), f"'{t}' is'nt valid type"
-        up_url, down_url = self._reserve_url(token, size or len(data), t)
+        up_url, down_url = self._reserve_url(token, size or len(data), file_type)
         headers = {
             "User-Agent": self.upload_ua,
             "Authorization": f"Bearer {token}",
@@ -316,7 +315,7 @@ class ToDusClient2(ToDusClient):
     def upload_file(self, data: bytes, size: int = None, file_type: FileType = FileType.VOICE) -> str:  # noqa
         """Upload data and return the download URL."""
         assert self.token, "Token needed"
-        return super().upload_file(self.token, data, size, t)
+        return super().upload_file(self.token, data, size, file_type)
 
     def download_file(self, url: str, path: str) -> int:  # noqa
         """Download file URL.
