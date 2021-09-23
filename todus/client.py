@@ -7,6 +7,7 @@ import socket
 import ssl
 import string
 import time
+from enum import IntEnum
 from base64 import b64decode, b64encode
 from contextlib import contextmanager
 from http.client import IncompleteRead
@@ -19,6 +20,16 @@ from .errors import AuthenticationError, EndOfStreamError, TokenExpiredError
 from .util import generate_token
 
 _BUFFERSIZE = 1024 * 1024
+
+class FileType(IntEnum):
+    FILE = 0
+    VOICE = 1
+    AUDIO = 2
+    VIDEO = 3
+    PICTURE = 4
+    PROFILE = 5
+    PROFILE_THUMBNAIL = 6
+    
 
 
 class ToDusClient:
@@ -211,16 +222,8 @@ class ToDusClient:
             token = "".join([c for c in resp.text if c in string.printable])
             return token
 
-    def upload_file(self, token: str, data: bytes, size: int = None, t: int = 1) -> str:
-        """Upload data and return the download URL.
-        t: url type used for uploading (default 1)
-          0 - file
-          1 - voice
-          2 - audio
-          3 - video
-          4 - picture
-          5 - profile
-          6 - profile thumbnail"""
+    def upload_file(self, token: str, data: bytes, size: int = None, file_type: FileType = FileType.VOICE) -> str:
+        """Upload data and return the download URL."""
         assert t in range(7), f"'{t}' is'nt valid type"
         up_url, down_url = self._reserve_url(token, size or len(data), t)
         headers = {
@@ -310,17 +313,8 @@ class ToDusClient2(ToDusClient):
         assert self.password, "Can't login without password"
         self.token = super().login(self.phone_number, self.password)
 
-    def upload_file(self, data: bytes, size: int = None, t: int = 1) -> str:  # noqa
-        """Upload data and return the download URL.
-        t: url type used for uploading (default 1)
-          0 - file
-          1 - voice
-          2 - audio
-          3 - video
-          4 - picture
-          5 - profile
-          6 - profile thumbnail"""
-        assert t in range(7), f"'{t}' is'nt valid type"
+    def upload_file(self, data: bytes, size: int = None, file_type: FileType = FileType.VOICE) -> str:  # noqa
+        """Upload data and return the download URL."""
         assert self.token, "Token needed"
         return super().upload_file(self.token, data, size, t)
 
