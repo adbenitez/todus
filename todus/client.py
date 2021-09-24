@@ -7,9 +7,9 @@ import socket
 import ssl
 import string
 import time
-from enum import IntEnum
 from base64 import b64decode, b64encode
 from contextlib import contextmanager
+from enum import IntEnum
 from http.client import IncompleteRead
 from threading import Lock
 from typing import Callable, Generator
