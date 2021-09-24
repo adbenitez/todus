@@ -21,6 +21,7 @@ from .util import generate_token
 
 _BUFFERSIZE = 1024 * 1024
 
+
 class FileType(IntEnum):
     FILE = 0
     VOICE = 1
@@ -29,7 +30,6 @@ class FileType(IntEnum):
     PICTURE = 4
     PROFILE = 5
     PROFILE_THUMBNAIL = 6
-    
 
 
 class ToDusClient:
@@ -222,7 +222,13 @@ class ToDusClient:
             token = "".join([c for c in resp.text if c in string.printable])
             return token
 
-    def upload_file(self, token: str, data: bytes, size: int = None, file_type: FileType = FileType.VOICE) -> str:
+    def upload_file(
+        self,
+        token: str,
+        data: bytes,
+        size: int = None,
+        file_type: FileType = FileType.VOICE,
+    ) -> str:
         """Upload data and return the download URL."""
         up_url, down_url = self._reserve_url(token, size or len(data), file_type)
         headers = {
@@ -312,7 +318,9 @@ class ToDusClient2(ToDusClient):
         assert self.password, "Can't login without password"
         self.token = super().login(self.phone_number, self.password)
 
-    def upload_file(self, data: bytes, size: int = None, file_type: FileType = FileType.VOICE) -> str:  # noqa
+    def upload_file(
+        self, data: bytes, size: int = None, file_type: FileType = FileType.VOICE
+    ) -> str:  # noqa
         """Upload data and return the download URL."""
         assert self.token, "Token needed"
         return super().upload_file(self.token, data, size, file_type)
