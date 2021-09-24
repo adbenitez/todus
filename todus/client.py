@@ -85,7 +85,7 @@ class ToDusClient:
                             "<iq i='"
                             + sid
                             + "-3' t='get'><query xmlns='todus:purl' type='"
-                            + str(file_type)
+                            + str(int(file_type))
                             + "' persistent='false' size='"
                             + str(filesize)
                             + "' room=''></query></iq>"
