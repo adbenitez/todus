@@ -9,6 +9,7 @@ import string
 import time
 from base64 import b64decode, b64encode
 from contextlib import contextmanager
+from enum import IntEnum
 from http.client import IncompleteRead
 from threading import Lock
 from typing import Callable, Generator
@@ -19,6 +20,18 @@ from .errors import AuthenticationError, EndOfStreamError, TokenExpiredError
 from .util import generate_token
 
 _BUFFERSIZE = 1024 * 1024
+
+
+class FileType(IntEnum):
+    """ToDus attachment type."""
+
+    FILE = 0
+    VOICE = 1
+    AUDIO = 2
+    VIDEO = 3
+    PICTURE = 4
+    PROFILE = 5
+    PROFILE_THUMBNAIL = 6
 
 
 class ToDusClient:
@@ -57,7 +70,7 @@ class ToDusClient:
             with _socket:
                 yield _socket
 
-    def _reserve_url(self, token: str, filesize: int) -> tuple:
+    def _reserve_url(self, token: str, filesize: int, file_type: FileType) -> tuple:
         phone, authstr = _parse_token(token)
         sid = generate_token(5)
 
@@ -73,7 +86,9 @@ class ToDusClient:
                         (
                             "<iq i='"
                             + sid
-                            + "-3' t='get'><query xmlns='todus:purl' type='1' persistent='false' size='"
+                            + "-3' t='get'><query xmlns='todus:purl' type='"
+                            + str(int(file_type))
+                            + "' persistent='false' size='"
                             + str(filesize)
                             + "' room=''></query></iq>"
                         ).encode()
@@ -209,9 +224,15 @@ class ToDusClient:
             token = "".join([c for c in resp.text if c in string.printable])
             return token
 
-    def upload_file(self, token: str, data: bytes, size: int = None) -> str:
+    def upload_file(
+        self,
+        token: str,
+        data: bytes,
+        size: int = None,
+        file_type: FileType = FileType.VOICE,
+    ) -> str:
         """Upload data and return the download URL."""
-        up_url, down_url = self._reserve_url(token, size or len(data))
+        up_url, down_url = self._reserve_url(token, size or len(data), file_type)
         headers = {
             "User-Agent": self.upload_ua,
             "Authorization": f"Bearer {token}",
@@ -299,10 +320,12 @@ class ToDusClient2(ToDusClient):
         assert self.password, "Can't login without password"
         self.token = super().login(self.phone_number, self.password)
 
-    def upload_file(self, data: bytes, size: int = None) -> str:  # noqa
+    def upload_file(  # noqa
+        self, data: bytes, size: int = None, file_type: FileType = FileType.VOICE
+    ) -> str:
         """Upload data and return the download URL."""
         assert self.token, "Token needed"
-        return super().upload_file(self.token, data, size)
+        return super().upload_file(self.token, data, size, file_type)
 
     def download_file(self, url: str, path: str) -> int:  # noqa
         """Download file URL.
