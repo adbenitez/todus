@@ -23,6 +23,7 @@ _BUFFERSIZE = 1024 * 1024
 
 
 class FileType(IntEnum):
+    """ToDus attachment type."""
     FILE = 0
     VOICE = 1
     AUDIO = 2
