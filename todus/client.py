@@ -318,9 +318,9 @@ class ToDusClient2(ToDusClient):
         assert self.password, "Can't login without password"
         self.token = super().login(self.phone_number, self.password)
 
-    def upload_file(
+    def upload_file(  # noqa
         self, data: bytes, size: int = None, file_type: FileType = FileType.VOICE
-    ) -> str:  # noqa
+    ) -> str:
         """Upload data and return the download URL."""
         assert self.token, "Token needed"
         return super().upload_file(self.token, data, size, file_type)
